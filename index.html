@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Town — Demo</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{--bg:#0a0a1a;--surface:#111128;--surface2:#1a1a3a;--border:#2a2a4a;--text:#e0e0e0;--muted:#888;--accent:#4A90D9;--accent2:#27AE60;--danger:#E74C3C;--warn:#F39C12;--font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+    body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden}
+    #town-container{flex:1;min-width:0}
+    #sidebar{width:380px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+    .sidebar-header{padding:16px 20px;border-bottom:1px solid var(--border)}
+    .sidebar-header h1{font-size:17px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .sidebar-header p{font-size:11px;color:var(--muted)}
+    .controls-bar{padding:12px 20px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+    .ctrl{display:flex;flex-direction:column;gap:3px}
+    .ctrl label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+    select,input[type=text]{font-family:var(--mono);font-size:11px;padding:5px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text);outline:none}
+    select:focus,input:focus{border-color:var(--accent)}
+    button{font-family:var(--font);font-size:12px;font-weight:500;border:none;border-radius:5px;padding:6px 12px;cursor:pointer;transition:all .12s}
+    .btn-p{background:var(--accent);color:#fff}.btn-p:hover{background:#3A7BC8}
+    .btn-s{background:#2a2a4a;color:#ccc}.btn-s:hover{background:#3a3a5a}
+    .btn-d{background:transparent;color:var(--danger);padding:3px 6px;font-size:10px}.btn-d:hover{background:rgba(231,76,60,.12)}
+    .btn-g{background:var(--accent2);color:#fff;font-size:11px;padding:4px 10px}.btn-g:hover{background:#219A52}
+    .btn-w{background:var(--warn);color:#fff;font-size:11px;padding:4px 10px}
+    .tab-bar{display:flex;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0}
+    .tab-bar button{background:transparent;color:var(--muted);padding:8px 12px;font-size:11px;border-radius:0;border-bottom:2px solid transparent;flex-shrink:0}
+    .tab-bar button.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .tab-bar button:hover{color:var(--text)}
+    .tab-content{flex:1;overflow:hidden;position:relative}
+    .tab-panel{position:absolute;inset:0;overflow-y:auto;padding:12px 16px;display:none}
+    .tab-panel.active{display:block}
+    .card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px;transition:border-color .12s}
+    .card:hover{border-color:#3a3a5a}
+    .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+    .card-h .name{font-weight:600;font-size:13px;display:flex;align-items:center;gap:5px}
+    .dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+    .pills{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:4px}
+    .pill{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:#252545;color:#aaa;border:1px solid transparent;cursor:pointer;transition:all .1s}
+    .pill:hover{background:#303060;color:#fff}
+    .pill.on{border-color:var(--accent);color:var(--accent)}
+    .badge{font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:3px;background:#252545;color:var(--muted)}
+    .badge-hi{background:#E74C3C33;color:#E74C3C}
+    .badge-med{background:#F39C1233;color:#F39C12}
+    .badge-lo{background:#27AE6033;color:#27AE60}
+    .badge-crit{background:#9B59B633;color:#9B59B6}
+    .msg-in{width:100%;font-family:var(--mono);font-size:11px;padding:5px 7px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text);outline:none;margin-top:4px}
+    .msg-in:focus{border-color:var(--accent)}.msg-in::placeholder{color:#444}
+    .empty{text-align:center;padding:30px 16px;color:#555;font-size:12px}
+    .section-h{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px;display:flex;align-items:center;justify-content:space-between}
+    .section-h .cnt{font-family:var(--mono);font-size:10px;background:#252545;padding:1px 6px;border-radius:8px}
+    .evt-item{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #1a1a30;font-size:11px}
+    .evt-time{color:var(--muted);font-family:var(--mono);font-size:10px;flex-shrink:0;width:50px}
+    .evt-dot{width:6px;height:6px;border-radius:50%;margin-top:4px;flex-shrink:0}
+    .evt-desc{flex:1;word-break:break-word}
+    .kanban-col{margin-bottom:12px}
+    .kanban-col h4{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+    .task-card{background:#151535;border:1px solid var(--border);border-radius:5px;padding:8px;margin-bottom:5px;cursor:pointer;border-left:3px solid var(--accent);transition:background .1s}
+    .task-card:hover{background:#1c1c40}
+    .task-card .tc-title{font-size:12px;font-weight:500;margin-bottom:3px}
+    .task-card .tc-meta{font-size:10px;color:var(--muted);display:flex;gap:8px}
+    .stat-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .stat-label{font-size:11px;width:80px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .stat-bar-bg{flex:1;height:14px;background:#151535;border-radius:3px;overflow:hidden}
+    .stat-bar{height:100%;border-radius:3px;transition:width .4s}
+    .stat-val{font-family:var(--mono);font-size:10px;color:var(--muted);width:35px;text-align:right;flex-shrink:0}
+    .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+    .stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center}
+    .stat-card .sv{font-size:22px;font-weight:700;line-height:1}
+    .stat-card .sl{font-size:10px;color:var(--muted);margin-top:2px}
+    .chat-area{flex:1;display:flex;flex-direction:column;height:100%}
+    .chat-msgs{flex:1;overflow-y:auto;padding-bottom:8px}
+    .chat-msg{margin-bottom:8px;font-size:12px}
+    .chat-msg .cm-from{font-weight:600;font-size:11px;margin-bottom:1px}
+    .chat-msg .cm-body{background:#151535;border-radius:6px;padding:6px 8px;line-height:1.4}
+    .chat-input-row{display:flex;gap:6px;margin-top:8px;flex-shrink:0}
+    .chat-input-row input{flex:1}
+    .review-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px}
+    .review-card h4{font-size:12px;margin-bottom:3px}
+    .review-card p{font-size:11px;color:var(--muted);margin-bottom:6px}
+    .review-actions{display:flex;gap:6px}
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:3px}
+  </style>
+</head>
+<body>
+  <div id="town-container"></div>
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <h1>Agent Town</h1>
+      <p>Pixel-art AI agent visualization</p>
+    </div>
+    <div class="controls-bar">
+      <div class="ctrl"><label>Environment</label>
+        <select id="sel-env">
+          <option value="office">Office</option>
+          <option value="rocket">Rocket Launch</option>
+          <option value="space_station">Space Station</option>
+          <option value="farm">Farm &amp; Ranch</option>
+          <option value="hospital">Hospital</option>
+        </select>
+      </div>
+      <div class="ctrl" id="theme-ctrl"><label>Theme</label>
+        <select id="sel-theme"><option value="casual">Casual</option><option value="business">Business</option><option value="hybrid" selected>Hybrid</option></select>
+      </div>
+      <div class="ctrl"><label>Demo</label>
+        <select id="sel-demo"><option value="simple">Simple (4)</option><option value="advanced">Advanced (10)</option><option value="enterprise">Enterprise (20)</option></select>
+      </div>
+      <button class="btn-p" id="btn-start">Start</button>
+      <button class="btn-s" id="btn-stop" style="display:none">Stop</button>
+    </div>
+    <div class="tab-bar">
+      <button class="tab active" data-tab="agents">Agents</button>
+      <button class="tab" data-tab="activity">Activity</button>
+      <button class="tab" data-tab="kanban">Kanban</button>
+      <button class="tab" data-tab="reviews">Reviews</button>
+      <button class="tab" data-tab="analytics">Analytics</button>
+      <button class="tab" data-tab="chat">Chat</button>
+    </div>
+    <div class="tab-content">
+      <div class="tab-panel active" id="panel-agents"><div class="empty">Start a demo to see agents.</div></div>
+      <div class="tab-panel" id="panel-activity">
+        <input type="text" class="msg-in" id="activity-search" placeholder="Search events..." style="margin-bottom:8px" />
+        <div class="pills" id="activity-filters">
+          <span class="pill on" data-f="all">All</span>
+          <span class="pill" data-f="status_change">Status</span>
+          <span class="pill" data-f="task_update">Tasks</span>
+          <span class="pill" data-f="message">Messages</span>
+          <span class="pill" data-f="review_request">Reviews</span>
+          <span class="pill" data-f="system">System</span>
+        </div>
+        <div id="activity-list"></div>
+      </div>
+      <div class="tab-panel" id="panel-kanban"><div id="kanban-board"></div></div>
+      <div class="tab-panel" id="panel-reviews"><div id="reviews-list"></div></div>
+      <div class="tab-panel" id="panel-analytics"><div id="analytics-content"></div></div>
+      <div class="tab-panel" id="panel-chat">
+        <div style="margin-bottom:8px">
+          <select id="chat-target" style="width:100%"><option value="orchestrator">Orchestrator</option></select>
+        </div>
+        <div id="chat-msgs" class="chat-msgs"></div>
+        <div class="chat-input-row">
+          <input type="text" class="msg-in" id="chat-input" placeholder="Message..." style="margin:0" />
+          <button class="btn-p" id="chat-send">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { AgentTown } from './src/index.ts';
+
+    /* ── constants ──────────────────────────────── */
+    const NAMES = ['Claude','Nova','Atlas','Sage','Echo','Pixel','Blaze','Luna','Cosmo','Aria','Bolt','Ivy','Rex','Zara','Finn','Maya','Neo','Jade','Kai','Rune','Orion','Vega','Cleo','Dash'];
+    const ROLES = ['Full Stack','Frontend','Backend','DevOps','QA','PM','Designer','Data Eng'];
+    const TEAMS_LIST = ['Alpha','Beta','Gamma','Delta','Platform'];
+    const STATUSES = ['idle','typing','reading','thinking','waiting','success','error'];
+    const SC = {idle:'#95A5A6',typing:'#3498DB',reading:'#9B59B6',thinking:'#F39C12',waiting:'#E67E22',success:'#27AE60',error:'#E74C3C'};
+    const MSGS = {
+      typing:['Writing auth module...','Refactoring utils...','Implementing API...','Fixing tests...','Adding validation...','Optimizing queries...','Building components...'],
+      reading:['Reading config.json','Scanning codebase...','Reviewing PR #42','Parsing schema...','Loading docs...','Analyzing logs...'],
+      thinking:['Analyzing codebase...','Planning approach...','Evaluating options...','Designing architecture...','Reviewing patterns...'],
+      waiting:['Needs approval','Waiting for review','Permission required','Blocked on dependency'],
+      success:['Build passed!','Tests green!','Deploy complete!','Task done!','PR merged!'],
+      error:['Test failed','Build error','Lint issues','Type error found','Timeout error'],
+    };
+    const TASK_TITLES = [
+      'Implement auth module','Design landing page','API endpoint tests','CI/CD pipeline setup','Fix login bugs','Add dark mode',
+      'Database migration','Real-time notifications','Performance audit','Security hardening','Mobile responsive layout','E2E test suite',
+      'Dashboard redesign','API v3 migration','Cache layer','Search indexing','User analytics','Payment integration',
+      'Email templates','Role-based access','Webhook system','Rate limiting','Error tracking','Log aggregation',
+      'Design system v3','GraphQL schema','Load testing','Monitoring alerts','Backup strategy','API documentation',
+    ];
+    const PRIORITIES = ['low','medium','high','critical'];
+    const STAGES = ['backlog','todo','in_progress','review','done'];
+    const STAGE_LABELS = {backlog:'Backlog',todo:'To Do',in_progress:'In Progress',review:'Review',done:'Done'};
+    const PRIO_BADGE = {low:'badge-lo',medium:'badge-med',high:'badge-hi',critical:'badge-crit'};
+
+    /* ── state ──────────────────────────────────── */
+    let town, demoTimer = null, actFilter = 'all', agentCounter = 0;
+    const chatHistory = [];
+
+    const pick = a => a[Math.floor(Math.random() * a.length)];
+    const el = id => document.getElementById(id);
+
+    /* ── init town ─────────────────────────────── */
+    town = new AgentTown({
+      container: el('town-container'),
+      theme: 'hybrid',
+      officeSize: 'small',
+      onAgentClick: id => {
+        switchTab('agents');
+        const c = document.querySelector(`[data-aid="${id}"]`);
+        if (c) c.scrollIntoView({behavior:'smooth',block:'nearest'});
+      },
+    });
+
+    /* ── tabs ───────────────────────────────────── */
+    document.querySelectorAll('.tab-bar .tab').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+    function switchTab(name) {
+      document.querySelectorAll('.tab-bar .tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+      if (name === 'analytics') renderAnalytics();
+      if (name === 'kanban') renderKanban();
+      if (name === 'reviews') renderReviews();
+    }
+
+    /* ── environment / theme / demo selectors ──── */
+    el('sel-env').addEventListener('change', e => {
+      const env = e.target.value;
+      town.setEnvironment(env);
+      el('theme-ctrl').style.display = env === 'office' ? '' : 'none';
+    });
+    el('sel-theme').addEventListener('change', e => town.setTheme(e.target.value));
+
+    el('btn-start').addEventListener('click', startDemo);
+    el('btn-stop').addEventListener('click', stopDemo);
+
+    function startDemo() {
+      stopDemo();
+      const mode = el('sel-demo').value;
+      const size = mode === 'simple' ? 'small' : mode === 'advanced' ? 'medium' : 'large';
+      town.setOfficeSize(size);
+      town.removeAllAgents();
+      town.clearTasks();
+      town.clearReviews();
+      town.clearActivityLog();
+      agentCounter = 0;
+
+      const cfg = DEMOS[mode];
+      cfg.tasks.forEach(t => town.addTask(t));
+      renderKanban();
+
+      let i = 0;
+      const spawnNext = () => {
+        if (i >= cfg.agents.length) { startCycling(mode); return; }
+        const a = cfg.agents[i++];
+        town.addAgent(a);
+        renderAgentList();
+        updateChatTargets();
+        setTimeout(spawnNext, 600);
+      };
+      spawnNext();
+
+      el('btn-start').style.display = 'none';
+      el('btn-stop').style.display = '';
+    }
+
+    function stopDemo() {
+      if (demoTimer) { clearInterval(demoTimer); demoTimer = null; }
+      el('btn-start').style.display = '';
+      el('btn-stop').style.display = 'none';
+    }
+
+    function startCycling(mode) {
+      const interval = mode === 'enterprise' ? 1800 : mode === 'advanced' ? 2200 : 2800;
+      demoTimer = setInterval(() => {
+        const agents = town.getAgents();
+        if (!agents.length) return;
+        const agent = pick(agents);
+        const status = pick(STATUSES.filter(s => s !== agent.userStatus));
+        const msgs = MSGS[status];
+        town.updateAgent(agent.id, { status, message: msgs ? pick(msgs) : null });
+        renderAgentList();
+
+        // Randomly progress tasks
+        if (Math.random() < 0.3) {
+          const tasks = town.getTasks().filter(t => t.stage !== 'done');
+          if (tasks.length) {
+            const task = pick(tasks);
+            const si = STAGES.indexOf(task.stage);
+            if (si < STAGES.length - 1) {
+              const next = STAGES[si + 1];
+              town.updateTask(task.id, { stage: next, assigneeId: agent.id, assigneeName: agent.name });
+              renderKanban();
+              if (next === 'review' && Math.random() < 0.5) {
+                town.addReview({
+                  id: 'rev-' + Date.now(),
+                  agentId: agent.id,
+                  agentName: agent.name,
+                  title: `Review: ${task.title}`,
+                  description: `${agent.name} requests review for "${task.title}"`,
+                  type: pick(['approval','decision','feedback']),
+                });
+                renderReviews();
+              }
+            }
+          }
+        }
+        if (Math.random() < 0.15) renderAnalytics();
+      }, interval);
+    }
+
+    /* ── demo configs ──────────────────────────── */
+    function makeAgents(count) {
+      return Array.from({length: count}, (_, i) => ({
+        id: `a${i}`, name: NAMES[i % NAMES.length],
+        role: ROLES[i % ROLES.length], team: TEAMS_LIST[i % TEAMS_LIST.length],
+      }));
+    }
+    function makeTasks(count, agentCount) {
+      return Array.from({length: count}, (_, i) => ({
+        id: `t${i}`, title: TASK_TITLES[i % TASK_TITLES.length],
+        description: '', stage: pick(STAGES.slice(0, 4)),
+        assigneeId: `a${i % agentCount}`, assigneeName: NAMES[i % agentCount],
+        priority: pick(PRIORITIES),
+      }));
+    }
+    const DEMOS = {
+      simple:   { agents: makeAgents(4),  tasks: makeTasks(8, 4) },
+      advanced: { agents: makeAgents(10), tasks: makeTasks(18, 10) },
+      enterprise:{ agents: makeAgents(20), tasks: makeTasks(30, 20) },
+    };
+
+    /* ── agents panel ──────────────────────────── */
+    function renderAgentList() {
+      const panel = el('panel-agents');
+      const agents = town.getAgents();
+      if (!agents.length) { panel.innerHTML = '<div class="empty">Start a demo to see agents.</div>'; return; }
+      panel.innerHTML = agents.map(a => `
+        <div class="card" data-aid="${a.id}">
+          <div class="card-h">
+            <span class="name"><span class="dot" style="background:${SC[a.userStatus]}"></span>${a.name}</span>
+            <span class="badge">${a.role || 'Agent'}</span>
+          </div>
+          <div class="pills">${STATUSES.map(s =>
+            `<span class="pill ${s===a.userStatus?'on':''}" data-s="${s}" data-a="${a.id}">${s}</span>`
+          ).join('')}</div>
+          <input class="msg-in" placeholder="Send message..." data-msg="${a.id}" />
+        </div>
+      `).join('');
+
+      panel.querySelectorAll('.pill[data-a]').forEach(p => {
+        p.addEventListener('click', () => {
+          const s = p.dataset.s, id = p.dataset.a;
+          const msgs = MSGS[s];
+          town.updateAgent(id, { status: s, message: msgs ? pick(msgs) : null });
+          renderAgentList();
+        });
+      });
+      panel.querySelectorAll('.msg-in[data-msg]').forEach(inp => {
+        inp.addEventListener('keydown', e => {
+          if (e.key === 'Enter' && e.target.value.trim()) {
+            town.updateAgent(inp.dataset.msg, { message: e.target.value.trim() });
+            e.target.value = '';
+          }
+        });
+      });
+    }
+
+    /* ── activity panel ────────────────────────── */
+    town.on('activity', () => renderActivity());
+
+    el('activity-search').addEventListener('input', () => renderActivity());
+    el('activity-filters').addEventListener('click', e => {
+      const pill = e.target.closest('.pill');
+      if (!pill) return;
+      actFilter = pill.dataset.f;
+      el('activity-filters').querySelectorAll('.pill').forEach(p => p.classList.toggle('on', p.dataset.f === actFilter));
+      renderActivity();
+    });
+
+    function renderActivity() {
+      const search = el('activity-search').value.toLowerCase();
+      let events = town.getActivityLog().slice().reverse();
+      if (actFilter !== 'all') events = events.filter(e => e.type === actFilter);
+      if (search) events = events.filter(e => e.description.toLowerCase().includes(search) || e.agentName.toLowerCase().includes(search));
+
+      el('activity-list').innerHTML = events.slice(0, 100).map(e => {
+        const t = new Date(e.timestamp);
+        const ts = t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0') + ':' + t.getSeconds().toString().padStart(2,'0');
+        const dc = {status_change:'#3498DB',task_update:'#F39C12',message:'#27AE60',review_request:'#E67E22',system:'#95A5A6'}[e.type] || '#888';
+        return `<div class="evt-item"><span class="evt-time">${ts}</span><span class="evt-dot" style="background:${dc}"></span><span class="evt-desc">${e.description}</span></div>`;
+      }).join('') || '<div class="empty">No events yet.</div>';
+    }
+
+    /* ── kanban panel ──────────────────────────── */
+    function renderKanban() {
+      const tasks = town.getTasks();
+      const board = el('kanban-board');
+      board.innerHTML = STAGES.map(stage => {
+        const items = tasks.filter(t => t.stage === stage);
+        const borderColors = {backlog:'#95A5A6',todo:'#3498DB',in_progress:'#F39C12',review:'#9B59B6',done:'#27AE60'};
+        return `<div class="kanban-col">
+          <h4>${STAGE_LABELS[stage]} <span class="cnt">${items.length}</span></h4>
+          ${items.map(t => `
+            <div class="task-card" style="border-left-color:${borderColors[stage]}" data-tid="${t.id}">
+              <div class="tc-title">${t.title}</div>
+              <div class="tc-meta">
+                <span class="badge ${PRIO_BADGE[t.priority]}">${t.priority}</span>
+                ${t.assigneeName ? `<span>${t.assigneeName}</span>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>`;
+      }).join('');
+
+      board.querySelectorAll('.task-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const task = town.getTasks().find(t => t.id === card.dataset.tid);
+          if (task) alert(`${task.title}\n\nStage: ${STAGE_LABELS[task.stage]}\nPriority: ${task.priority}\nAssignee: ${task.assigneeName || 'Unassigned'}`);
+        });
+      });
+    }
+
+    /* ── reviews panel ─────────────────────────── */
+    function renderReviews() {
+      const reviews = town.getReviews().slice().reverse();
+      const pending = reviews.filter(r => r.status === 'pending');
+      const resolved = reviews.filter(r => r.status !== 'pending');
+
+      el('reviews-list').innerHTML = (pending.length ? `
+        <div class="section-h">Pending <span class="cnt">${pending.length}</span></div>
+        ${pending.map(r => `
+          <div class="review-card">
+            <h4>${r.title}</h4>
+            <p>${r.description}</p>
+            <div class="review-actions">
+              <button class="btn-g" data-rv="${r.id}" data-act="approved">Approve</button>
+              <button class="btn-d" data-rv="${r.id}" data-act="rejected">Reject</button>
+            </div>
+          </div>
+        `).join('')}
+      ` : '') + (resolved.length ? `
+        <div class="section-h">Resolved <span class="cnt">${resolved.length}</span></div>
+        ${resolved.map(r => `
+          <div class="review-card" style="opacity:.6">
+            <h4>${r.title} <span class="badge">${r.status}</span></h4>
+            <p>${r.description}</p>
+          </div>
+        `).join('')}
+      ` : '') || '<div class="empty">No reviews yet.</div>';
+
+      el('reviews-list').querySelectorAll('button[data-rv]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          town.resolveReview(btn.dataset.rv, btn.dataset.act);
+          renderReviews();
+        });
+      });
+    }
+
+    /* ── analytics panel ───────────────────────── */
+    function renderAnalytics() {
+      const agents = town.getAgents();
+      const tasks = town.getTasks();
+      const done = tasks.filter(t => t.stage === 'done').length;
+      const inProg = tasks.filter(t => t.stage === 'in_progress').length;
+      const pct = tasks.length ? Math.round(done / tasks.length * 100) : 0;
+
+      const statusCounts = {};
+      agents.forEach(a => { statusCounts[a.userStatus] = (statusCounts[a.userStatus] || 0) + 1; });
+
+      const barColors = ['#4A90D9','#27AE60','#E74C3C','#F39C12','#9B59B6','#1ABC9C','#E67E22','#3498DB','#2ECC71','#D35400'];
+
+      el('analytics-content').innerHTML = `
+        <div class="stats-grid">
+          <div class="stat-card"><div class="sv">${agents.length}</div><div class="sl">Active Agents</div></div>
+          <div class="stat-card"><div class="sv">${tasks.length}</div><div class="sl">Total Tasks</div></div>
+          <div class="stat-card"><div class="sv" style="color:#27AE60">${done}</div><div class="sl">Completed</div></div>
+          <div class="stat-card"><div class="sv" style="color:#F39C12">${inProg}</div><div class="sl">In Progress</div></div>
+        </div>
+        <div class="section-h">Sprint Progress</div>
+        <div class="stat-row">
+          <span class="stat-label">Overall</span>
+          <div class="stat-bar-bg"><div class="stat-bar" style="width:${pct}%;background:${pct>70?'#27AE60':pct>30?'#F39C12':'#E74C3C'}"></div></div>
+          <span class="stat-val">${pct}%</span>
+        </div>
+        <div class="section-h">Agent Status Distribution</div>
+        ${Object.entries(statusCounts).map(([s, c]) => `
+          <div class="stat-row">
+            <span class="stat-label">${s}</span>
+            <div class="stat-bar-bg"><div class="stat-bar" style="width:${c/agents.length*100}%;background:${SC[s]}"></div></div>
+            <span class="stat-val">${c}</span>
+          </div>
+        `).join('')}
+        <div class="section-h">Tasks by Agent</div>
+        ${agents.slice(0, 12).map((a, i) => {
+          const ac = tasks.filter(t => t.assigneeId === a.id).length;
+          const dc = tasks.filter(t => t.assigneeId === a.id && t.stage === 'done').length;
+          return `<div class="stat-row">
+            <span class="stat-label">${a.name}</span>
+            <div class="stat-bar-bg"><div class="stat-bar" style="width:${tasks.length?ac/Math.max(...agents.map(x=>tasks.filter(t=>t.assigneeId===x.id).length),1)*100:0}%;background:${barColors[i%barColors.length]}"></div></div>
+            <span class="stat-val">${dc}/${ac}</span>
+          </div>`;
+        }).join('')}
+      `;
+    }
+
+    /* ── chat panel ────────────────────────────── */
+    function updateChatTargets() {
+      const sel = el('chat-target');
+      const agents = town.getAgents();
+      sel.innerHTML = '<option value="orchestrator">Orchestrator</option><option value="team">All Team</option>'
+        + agents.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+    }
+
+    el('chat-send').addEventListener('click', sendChat);
+    el('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+    function sendChat() {
+      const input = el('chat-input');
+      const msg = input.value.trim();
+      if (!msg) return;
+      const target = el('chat-target').value;
+      const targetName = el('chat-target').selectedOptions[0].text;
+
+      chatHistory.push({ from: 'You', to: targetName, body: msg, ts: Date.now() });
+      input.value = '';
+
+      setTimeout(() => {
+        const agents = town.getAgents();
+        const responder = target === 'orchestrator' ? (agents[0] || { name: 'System' })
+          : target === 'team' ? pick(agents) || { name: 'System' }
+          : town.getAgent(target) || { name: 'System' };
+        const responses = [
+          'On it! Working on that now.',
+          'I\'ll prioritize this task.',
+          'Good point, let me investigate.',
+          'That\'s already in progress.',
+          'I\'ll need to review the codebase first.',
+          'Understood. Updating the approach.',
+          'Let me coordinate with the team on this.',
+          'Running the analysis now...',
+        ];
+        chatHistory.push({ from: responder.name, body: pick(responses), ts: Date.now() });
+        renderChat();
+      }, 800 + Math.random() * 1200);
+
+      renderChat();
+    }
+
+    function renderChat() {
+      const area = el('chat-msgs');
+      area.innerHTML = chatHistory.map(m => `
+        <div class="chat-msg">
+          <div class="cm-from" style="color:${m.from==='You'?'var(--accent)':'var(--accent2)'}">${m.from}</div>
+          <div class="cm-body">${m.body}</div>
+        </div>
+      `).join('');
+      area.scrollTop = area.scrollHeight;
+    }
+
+    /* ── initial render ────────────────────────── */
+    renderActivity();
+    renderKanban();
+    renderReviews();
+    renderAnalytics();
+  </script>
+</body>
+</html>
