@@ -79,7 +79,7 @@ export const THEMES: Record<string, ThemeColors> = {
 
 /* ── environment palettes ──────────────────────── */
 
-export const ENV_COLORS: Record<EnvironmentId, ThemeColors> = {
+export const ENV_COLORS: Record<string, ThemeColors> = {
   office: THEMES.hybrid,
   rocket: {
     bg: '#08082A', floor: '#6A7080', floorAlt: '#626870', floorGrid: '#5A6068',
@@ -133,6 +133,19 @@ export const ENV_COLORS: Record<EnvironmentId, ThemeColors> = {
     meetingTable: '#B0B8C0', meetingTableEdge: '#8A9AAA',
     rug: '#B0C8B8', waterCooler: '#D0D8E0', waterCoolerWater: '#74B9FF',
   },
+  pirate_ship: {
+    bg: '#061020', floor: '#8B6914', floorAlt: '#7A5A0A', floorGrid: '#6A4A00',
+    wall: '#5A3A1A', wallTop: '#6B4423', wallBorder: '#4A2A0A',
+    deskTop: '#8B7040', deskEdge: '#6B5020', deskLeg: '#5A4010',
+    monitor: '#3A2A1A', screenOn: '#FFCC00', screenOff: '#2A1A0A',
+    chairSeat: '#6B4423', chairBack: '#5A3A1A',
+    plantLeaf: '#2A6A3A', plantLeafAlt: '#3A7A4A', plantPot: '#5A3A1A',
+    bookshelf: '#5A3A1A', books: ['#CC3333','#FFCC00','#ECF0F1','#1ABC9C','#8B6914'],
+    coffee: '#4A3020', couch: '#6B4423', whiteboard: '#C0B090',
+    cabinet: '#5A3A1A', printer: '#7A5A3A',
+    meetingTable: '#6B4423', meetingTableEdge: '#5A3A1A',
+    rug: '#7A6A50', waterCooler: '#6A6A7A', waterCoolerWater: '#4488CC',
+  },
 };
 
 /* ── size configs ──────────────────────────────── */
@@ -149,10 +162,18 @@ export interface SizeConfig {
 }
 
 export const SIZE_CONFIGS: Record<OfficeSize, SizeConfig> = {
-  small:  { width: 24, height: 16, maxWorkstations: 8,  deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 4 },
-  medium: { width: 34, height: 20, maxWorkstations: 16, deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 4 },
-  large:  { width: 44, height: 26, maxWorkstations: 24, deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 6 },
+  small:  { width: 20, height: 13, maxWorkstations: 8,  deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 4 },
+  medium: { width: 26, height: 16, maxWorkstations: 16, deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 4 },
+  large:  { width: 34, height: 20, maxWorkstations: 24, deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 6 },
 };
+
+/* ── auto-size helper ─────────────────────────── */
+
+export function getAutoSize(agentCount: number): OfficeSize {
+  if (agentCount <= 6) return 'small';
+  if (agentCount <= 14) return 'medium';
+  return 'large';
+}
 
 /* ── environment metadata ──────────────────────── */
 
@@ -162,4 +183,5 @@ export const ENV_LABELS: Record<EnvironmentId, string> = {
   space_station: 'Space Station',
   farm: 'Farm & Ranch',
   hospital: 'Hospital',
+  pirate_ship: 'Pirate Ship',
 };

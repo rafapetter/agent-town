@@ -34,8 +34,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/agent-town"
+    "url": "https://github.com/rafapetter/agent-town"
   },
+  "homepage": "https://github.com/rafapetter/agent-town#readme",
+  "bugs": {
+    "url": "https://github.com/rafapetter/agent-town/issues"
+  },
+  "author": "Rafael Petter",
   "devDependencies": {
     "typescript": "^5.7.0",
     "vite": "^6.1.0",

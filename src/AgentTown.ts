@@ -1,14 +1,56 @@
 import type {
   AgentConfig, AgentUpdate, TownConfig, TownEventMap,
   ThemeId, OfficeSize, EnvironmentId, ActivityEvent, Task, TaskStage, ReviewItem,
+  ZoneType,
 } from './types';
 import { Agent, resetPaletteCounter } from './agent';
 import { World } from './world';
 import { Renderer } from './renderer';
 import { Engine } from './engine';
+import { getAutoSize } from './themes';
 
 type EventKey = keyof TownEventMap;
 type EventCb<K extends EventKey> = (...args: TownEventMap[K]) => void;
+
+/** Status → preferred zone type per environment */
+const ZONE_PREFS: Record<EnvironmentId, Record<string, ZoneType[]>> = {
+  office: {
+    typing: ['desk'],
+    thinking: ['whiteboard_area', 'meeting'],
+    reading: ['break_area', 'meeting'],
+    idle: ['break_area', 'whiteboard_area', 'desk'],
+  },
+  rocket: {
+    typing: ['control_panel', 'tool_bench'],
+    thinking: ['control_panel', 'fuel_station'],
+    reading: ['tool_bench', 'fuel_station'],
+    idle: ['engine_bay', 'fuselage_work', 'tool_bench'],
+  },
+  space_station: {
+    typing: ['bridge_console', 'science_lab'],
+    thinking: ['observation', 'science_lab'],
+    reading: ['science_lab', 'engineering'],
+    idle: ['comms', 'observation', 'bridge_console'],
+  },
+  farm: {
+    typing: ['barn_workshop'],
+    thinking: ['crop_field', 'water_station'],
+    reading: ['barn_workshop', 'water_station'],
+    idle: ['tractor_seat', 'animal_pen', 'crop_field'],
+  },
+  hospital: {
+    typing: ['reception', 'lab_bench'],
+    thinking: ['lab_bench', 'pharmacy'],
+    reading: ['pharmacy', 'lab_bench'],
+    idle: ['patient_station', 'surgery_room', 'reception'],
+  },
+  pirate_ship: {
+    typing: ['nav_table', 'helm'],
+    thinking: ['helm', 'nav_table'],
+    reading: ['cargo_hold', 'nav_table'],
+    idle: ['rigging', 'cannon_post', 'cargo_hold'],
+  },
+};
 
 export class AgentTown {
   private container: HTMLElement;
@@ -26,6 +68,7 @@ export class AgentTown {
   private currentTheme: ThemeId;
   private currentSize: OfficeSize;
   private currentEnv: EnvironmentId;
+  private autoSizeEnabled: boolean;
 
   private activityLog: ActivityEvent[] = [];
   private taskMap = new Map<string, Task>();
@@ -39,6 +82,7 @@ export class AgentTown {
     this.currentTheme = config.theme ?? 'hybrid';
     this.currentSize = config.officeSize ?? 'small';
     this.currentEnv = config.environment ?? 'office';
+    this.autoSizeEnabled = config.autoSize ?? false;
 
     resetPaletteCounter();
 
@@ -84,6 +128,7 @@ export class AgentTown {
   }
 
   setOfficeSize(size: OfficeSize): void {
+    if (size === this.currentSize) return;
     this.currentSize = size;
     this.world.rebuild(size, this.currentTheme, this.currentEnv);
     this.reassignAgents();
@@ -112,18 +157,21 @@ export class AgentTown {
   addAgent(cfg: AgentConfig): void {
     if (this.agents.has(cfg.id)) throw new Error(`Agent "${cfg.id}" already exists`);
     const agent = new Agent(cfg.id, cfg.name, this.world.spawnPoint, cfg.role, cfg.team);
-    const ws = this.world.getAvailableWorkstation();
-    if (ws) {
-      agent.workstationId = ws.id;
-      this.world.assignWorkstation(ws.id, cfg.id);
-      const path = this.world.findPath(this.world.spawnPoint, ws.chairPosition);
+    const zone = this.world.getAvailableZone();
+    if (zone) {
+      agent.currentZoneId = zone.id;
+      agent.currentZoneType = zone.type;
+      this.world.assignZone(zone.id, cfg.id);
+      const path = this.world.findPath(this.world.spawnPoint, zone.position);
       if (path.length > 1) agent.walkTo(path);
-      else this.teleport(agent, ws.chairPosition);
+      else this.teleport(agent, zone.position);
     }
     if (cfg.status) agent.setStatus(cfg.status, cfg.message);
     this.agents.set(cfg.id, agent);
     this.logActivity(cfg.id, 'system', `${cfg.name} joined the office`);
     this.emit('agentAdded', cfg.id);
+
+    if (this.autoSizeEnabled) this.autoResize();
   }
 
   updateAgent(id: string, update: AgentUpdate): void {
@@ -136,6 +184,8 @@ export class AgentTown {
       if (old !== update.status) {
         this.logActivity(id, 'status_change',
           `${agent.name} → ${update.status}${update.message ? ': ' + update.message : ''}`);
+        // Trigger movement on status change
+        this.scheduleMovement(agent);
       }
     } else if (update.message !== undefined) {
       agent.message = update.message;
@@ -149,9 +199,11 @@ export class AgentTown {
     const agent = this.agents.get(id);
     if (!agent) return;
     this.logActivity(id, 'system', `${agent.name} left the office`);
-    this.world.freeWorkstation(id);
+    this.world.freeZone(id);
     this.agents.delete(id);
     this.emit('agentRemoved', id);
+
+    if (this.autoSizeEnabled) this.autoResize();
   }
 
   removeAllAgents(): void {
@@ -160,6 +212,80 @@ export class AgentTown {
 
   getAgent(id: string): Agent | undefined { return this.agents.get(id); }
   getAgents(): Agent[] { return [...this.agents.values()]; }
+
+  /* ── movement system ─────────────────────────── */
+
+  private getPreferredZoneTypes(agent: Agent): ZoneType[] {
+    const prefs = ZONE_PREFS[this.currentEnv];
+    return prefs[agent.userStatus] ?? prefs.idle ?? [];
+  }
+
+  private scheduleMovement(agent: Agent): void {
+    if (agent.isWalking) return;
+
+    const preferred = this.getPreferredZoneTypes(agent);
+    // Try to find an available zone of a preferred type, ideally in a different room
+    const currentZone = agent.currentZoneId !== null
+      ? this.world.zones.find(z => z.id === agent.currentZoneId)
+      : null;
+    const currentRoom = currentZone?.roomId ?? -1;
+
+    // First try: different room, preferred type
+    let target = this.world.zones.find(z =>
+      !z.assignedAgentId && z.roomId !== currentRoom &&
+      preferred.includes(z.type),
+    );
+    // Second try: any room, preferred type
+    if (!target) {
+      target = this.world.zones.find(z =>
+        !z.assignedAgentId && z.id !== agent.currentZoneId &&
+        preferred.includes(z.type),
+      );
+    }
+    // Third try: any available zone in different room
+    if (!target) {
+      target = this.world.zones.find(z =>
+        !z.assignedAgentId && z.roomId !== currentRoom,
+      );
+    }
+    // Last resort: any available zone
+    if (!target) {
+      target = this.world.zones.find(z =>
+        !z.assignedAgentId && z.id !== agent.currentZoneId,
+      );
+    }
+
+    if (!target) return;
+
+    // Free current zone
+    if (agent.currentZoneId !== null) {
+      this.world.freeZone(agent.id);
+    }
+
+    // Assign new zone
+    agent.currentZoneId = target.id;
+    agent.currentZoneType = target.type;
+    this.world.assignZone(target.id, agent.id);
+
+    const start = { x: Math.round(agent.gridX), y: Math.round(agent.gridY) };
+    const path = this.world.findPath(start, target.position);
+    if (path.length > 1) {
+      agent.isAtDesk = false;
+      agent.isRoaming = true;
+      agent.walkTo(path);
+    } else {
+      this.teleport(agent, target.position);
+    }
+
+    agent.movementTimer = 15 + Math.random() * 20;
+  }
+
+  private autoResize(): void {
+    const ideal = getAutoSize(this.agents.size);
+    if (ideal !== this.currentSize) {
+      this.setOfficeSize(ideal);
+    }
+  }
 
   /* ── activity log ───────────────────────────── */
 
@@ -254,6 +380,9 @@ export class AgentTown {
     agent.x = pos.x; agent.y = pos.y;
     agent.gridX = pos.x; agent.gridY = pos.y;
     agent.isAtDesk = true;
+    // Face the zone's direction
+    const zone = this.world.zones.find(z => z.id === agent.currentZoneId);
+    if (zone) agent.direction = zone.facingDirection;
   }
 
   private syncSize(): void {
@@ -261,9 +390,10 @@ export class AgentTown {
     const dpr = window.devicePixelRatio || 1;
     const w = rect.width * dpr, h = rect.height * dpr;
     this.renderer.resize(w, h);
-    const worldW = this.world.gridWidth * this.tileSize;
-    const worldH = this.world.gridHeight * this.tileSize;
-    this.scale = Math.max(1, Math.floor(Math.min(w / worldW, h / worldH) * 0.9));
+    // Use the small grid as reference so scale stays constant across all sizes
+    const refW = 24 * this.tileSize; // small grid width
+    const refH = 16 * this.tileSize; // small grid height
+    this.scale = Math.max(1, Math.floor(Math.min(w / refW, h / refH) * 0.9));
     this.renderer.setScale(this.scale);
   }
 
@@ -271,11 +401,24 @@ export class AgentTown {
     for (const agent of this.agents.values()) {
       const was = agent.isWalking;
       agent.update(dt);
-      if (was && !agent.isWalking && agent.workstationId !== null) {
+
+      // Agent arrived at destination
+      if (was && !agent.isWalking && agent.currentZoneId !== null) {
         agent.isAtDesk = true;
-        agent.direction = 'up';
+        agent.isRoaming = false;
+        const zone = this.world.zones.find(z => z.id === agent.currentZoneId);
+        if (zone) agent.direction = zone.facingDirection;
+      }
+
+      // Periodic roaming for idle agents
+      if (!agent.isWalking && agent.isAtDesk) {
+        agent.movementTimer -= dt;
+        if (agent.movementTimer <= 0) {
+          this.scheduleMovement(agent);
+        }
       }
     }
+    this.renderer.updateParticles(dt);
   }
 
   private render(): void {

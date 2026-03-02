@@ -1,4 +1,4 @@
-import type { AgentStatus, CharacterPalette, Direction, Position, SpriteFrame } from './types';
+import type { AgentStatus, CharacterPalette, Direction, Position, SpriteFrame, ZoneType } from './types';
 import { PALETTES, SPRITES, SPRITES_F } from './sprites';
 
 let nextPaletteIdx = 0;
@@ -35,7 +35,22 @@ export class Agent {
   message: string | null = null;
   messageTimer = 0;
 
-  workstationId: number | null = null;
+  /* idle micro-animation state */
+  breathPhase = 0;
+  blinkTimer = 3 + Math.random() * 3;
+  isBlinking = false;
+  private blinkDuration = 0;
+
+  /* zone & movement */
+  currentZoneId: number | null = null;
+  currentZoneType: ZoneType | null = null;
+  movementTimer = 15 + Math.random() * 15;
+  isRoaming = false;
+
+  /** @deprecated Use currentZoneId instead */
+  get workstationId(): number | null { return this.currentZoneId; }
+  set workstationId(v: number | null) { this.currentZoneId = v; }
+
   visible = true;
 
   private walkSpeed = 3;
@@ -87,6 +102,26 @@ export class Agent {
           this.message = null;
         }
       }
+    }
+
+    /* idle micro-animations */
+    if (!this.isWalking && this.isAtDesk) {
+      this.breathPhase += dt * 2.5;
+      this.blinkTimer -= dt;
+      if (this.isBlinking) {
+        this.blinkDuration -= dt;
+        if (this.blinkDuration <= 0) {
+          this.isBlinking = false;
+          this.blinkTimer = 2.5 + Math.random() * 4;
+        }
+      } else if (this.blinkTimer <= 0) {
+        this.isBlinking = true;
+        this.blinkDuration = 0.1 + Math.random() * 0.05;
+      }
+    } else {
+      this.breathPhase = 0;
+      this.isBlinking = false;
+      this.blinkTimer = 3;
     }
 
     if (!this.isWalking || this.pathIndex >= this.path.length) return;

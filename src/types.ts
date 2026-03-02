@@ -17,11 +17,27 @@ export type TileType =
   | 'hull_window' | 'solar_panel' | 'oxygen_tank' | 'comm_dish' | 'sleep_pod'
   | 'hay_bale' | 'tree' | 'water_trough' | 'crop' | 'tractor'
   | 'hospital_bed' | 'med_cabinet' | 'xray_machine' | 'curtain' | 'sink'
-  | 'cow' | 'chicken' | 'sheep' | 'satellite' | 'launch_pad';
+  | 'cow' | 'chicken' | 'sheep' | 'satellite' | 'launch_pad'
+  | 'ship_hull' | 'ship_mast' | 'ship_sail' | 'ship_wheel' | 'cannon'
+  | 'barrel' | 'anchor' | 'plank' | 'crows_nest' | 'treasure_chest' | 'jolly_roger';
 
 export type ThemeId = 'casual' | 'business' | 'hybrid';
 export type OfficeSize = 'small' | 'medium' | 'large';
-export type EnvironmentId = 'office' | 'rocket' | 'space_station' | 'farm' | 'hospital';
+export type EnvironmentId = 'office' | 'rocket' | 'space_station' | 'farm' | 'hospital' | 'pirate_ship';
+
+export type ZoneType =
+  // Office
+  | 'desk' | 'meeting' | 'break_area' | 'whiteboard_area'
+  // Rocket
+  | 'engine_bay' | 'fuselage_work' | 'control_panel' | 'fuel_station' | 'tool_bench'
+  // Space Station
+  | 'bridge_console' | 'science_lab' | 'engineering' | 'comms' | 'observation'
+  // Farm
+  | 'tractor_seat' | 'animal_pen' | 'crop_field' | 'barn_workshop' | 'water_station'
+  // Hospital
+  | 'patient_station' | 'surgery_room' | 'pharmacy' | 'reception' | 'lab_bench'
+  // Pirate Ship
+  | 'helm' | 'cannon_post' | 'rigging' | 'cargo_hold' | 'nav_table';
 
 export interface Position { x: number; y: number }
 
@@ -46,18 +62,30 @@ export interface TownConfig {
   theme?: ThemeId;
   officeSize?: OfficeSize;
   environment?: EnvironmentId;
+  autoSize?: boolean;
   onAgentClick?: (agentId: string) => void;
 }
 
 export interface Tile { type: TileType; walkable: boolean }
 
-export interface Workstation {
+export interface ActivityZone {
   id: number;
-  deskTiles: Position[];
-  chairPosition: Position;
+  type: ZoneType;
+  position: Position;
   facingDirection: Direction;
   assignedAgentId?: string;
+  roomId: number;
 }
+
+export interface Room {
+  id: number;
+  name: string;
+  bounds: { x: number; y: number; w: number; h: number };
+  doorways: Position[];
+}
+
+/** @deprecated Use ActivityZone instead */
+export type Workstation = ActivityZone;
 
 export interface CharacterPalette {
   skin: string;
