@@ -21,6 +21,7 @@ Major upgrade to environments, rendering, task visualization, and project infras
 - **Agent speech bubbles with status** — agents show contextual messages based on their current activity (coding, reviewing, testing, etc.)
 - **Enhanced particle effects** — sparkle, smoke, and completion particles tied to agent actions
 - **10 character palettes** — expanded diverse, procedurally-colored pixel art character set
+- **Town environment** — RPG-style outdoor village with peaked-roof buildings, cobblestone roads, streetlamps, trees, and fences (7th environment)
 
 ### Changed
 

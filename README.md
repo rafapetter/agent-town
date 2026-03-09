@@ -12,7 +12,7 @@ Each agent you register gets its own animated pixel character that walks around,
 
 - **Zero dependencies** — pure TypeScript, renders to a single `<canvas>`
 - **Framework-agnostic** — works with vanilla JS, React, Vue, Svelte, or anything with a DOM
-- **6 themed environments** — Office, Rocket Launch, Space Station, Farm & Ranch, Hospital, Pirate Ship
+- **7 themed environments** — Office, Rocket Launch, Space Station, Farm & Ranch, Hospital, Pirate Ship, Town
 - **3 grid sizes** — Small (20×13, up to 8 agents), Medium (26×16, up to 16), Large (34×20, up to 24)
 - **Kanban task visualization** — tasks render as pixel-art items inside stage rooms; overflow indicators and background watermark counts per stage
 - **Done stage effects** — completed tasks appear faded with green checkmarks; completion bag (big object) grows with progress
@@ -29,7 +29,7 @@ Each agent you register gets its own animated pixel character that walks around,
 
 ## Environments
 
-6 themed environments — each with unique pixel-art tiles, furniture, and animated elements:
+7 themed environments — each with unique pixel-art tiles, furniture, and animated elements:
 
 | Environment | Description | Key Features |
 |---|---|---|
@@ -39,6 +39,7 @@ Each agent you register gets its own animated pixel character that walks around,
 | **Farm & Ranch** | Rural workspace | Animated cow/chicken/sheep, tractor with spinning wheels & exhaust, barn, crops |
 | **Hospital** | Research lab | Pharmaceutical/research themed — lab benches, equipment, reception |
 | **Pirate Ship** | Seafaring vessel | Captain's quarters, cannons, barrels, map table, crow's nest |
+| **Town** | RPG village | Outdoor buildings with peaked roofs, cobblestone roads, streetlamps, trees, fences |
 
 <table>
 <tr>
@@ -47,7 +48,7 @@ Each agent you register gets its own animated pixel character that walks around,
 </tr>
 <tr>
 <td><strong>Pirate Ship</strong><br><img src="docs/screenshots/playground-pirate-ship.png" width="400" alt="Pirate Ship environment"></td>
-<td><strong>Office</strong><br><img src="docs/screenshots/playground-agents.png" width="400" alt="Office environment with agents"></td>
+<td><strong>Town</strong><br><img src="docs/screenshots/playground-town.png" width="400" alt="Town RPG environment"></td>
 </tr>
 </table>
 
@@ -103,7 +104,7 @@ Creates the visualization and starts rendering.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `container` | `HTMLElement` | *required* | DOM element to render into |
-| `environment` | `EnvironmentId` | `'office'` | One of: `office`, `rocket`, `space_station`, `farm`, `hospital`, `pirate_ship` |
+| `environment` | `EnvironmentId` | `'office'` | One of: `office`, `rocket`, `space_station`, `farm`, `hospital`, `pirate_ship`, `town` |
 | `officeSize` | `OfficeSize` | `'medium'` | Grid size: `small` (20×13), `medium` (26×16), `large` (34×20) |
 | `theme` | `ThemeId` | `'casual'` | Office theme: `casual`, `business`, `hybrid` |
 | `scale` | `number` | auto | Pixel zoom level (auto-calculated from container size) |
