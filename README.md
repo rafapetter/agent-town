@@ -56,6 +56,23 @@ Each agent you register gets its own animated pixel character that walks around,
 </tr>
 </table>
 
+## Dashboard & Analytics
+
+The playground sidebar includes 10 panels that provide real-time data insights and project management tools:
+
+| Panel | What It Shows |
+|-------|---------------|
+| **Agents** | Live status cards for each agent — current activity, tasks completed/failed, 6-step pipeline progress (Planning → Research → Coding → Testing → Review → Done) |
+| **Project** | Hierarchical project view — Sprints → Objectives → Stories → Tasks with progress bars at every level |
+| **Kanban** | Visual board with columns per workflow stage (Backlog → Todo → In Progress → Review → Done), task counts, priority badges, and assignees |
+| **Timeline** | Schedule tracking with overall progress, risk assessment (On Track / At Risk / Behind), sprint burndown, and nested objective-to-task visibility |
+| **Manage** | Full CRUD for work items — create/edit/delete sprints, objectives, stories, and tasks; configure kanban stages with custom colors and building styles |
+| **Activity** | Color-coded event log — searchable stream of status changes, task updates, messages, review requests, and system events with timestamps |
+| **Reviews** | Code review approval workflow — pending reviews with approve/reject actions, resolved history, and type badges (approval, decision, feedback) |
+| **Analytics** | Metrics dashboard — active agent count, task completion rates, sprint progress, objective progress bars, agent status distribution, and per-agent performance ranking |
+| **Settings** | Visualization config — environment selector, office theme, particle density, simulation speed |
+| **Chat** | Real-time conversation interface — message individual agents or broadcast to all; agents respond contextually based on their current workflow state |
+
 ## Install
 
 ```bash
@@ -215,7 +232,142 @@ town.on('ready', () => console.log('town ready'));
 
 Stops rendering, removes the canvas, and cleans up all listeners.
 
-## Integration Examples
+## Connect to Coding Agents
+
+Agent Town works as a live dashboard for AI coding agents. A lightweight bridge server receives hook events from your coding tool and forwards them to the visualization via WebSocket.
+
+```
+┌──────────────┐     HTTP POST     ┌──────────────┐    WebSocket    ┌──────────────┐
+│  Claude Code │ ─────────────────>│    Bridge     │ ──────────────>│  Agent Town  │
+│  Cursor      │   /hooks          │    Server     │                │  Dashboard   │
+│  Codex       │                   │  (port 3001)  │                │  (browser)   │
+└──────────────┘                   └──────────────┘                └──────────────┘
+```
+
+### Step 1: Start the Bridge Server
+
+The bridge server is a zero-dependency Node.js script included in `examples/`:
+
+```bash
+node examples/bridge-server.mjs
+```
+
+It listens on port 3001 — HTTP for hooks, WebSocket for browser clients.
+
+### Step 2: Open the Dashboard
+
+Open `examples/live-dashboard.html` in your browser (or use the library in your own app). It auto-connects to `ws://localhost:3001` and spawns pixel characters as agents come online.
+
+### Step 3: Configure Your Coding Tool
+
+#### Claude Code
+
+Claude Code has native HTTP hooks — no shell scripts needed. Add to `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "hooks": [{ "type": "http", "url": "http://localhost:3001/hooks" }]
+    }],
+    "PostToolUse": [{
+      "hooks": [{ "type": "http", "url": "http://localhost:3001/hooks" }]
+    }],
+    "Stop": [{
+      "hooks": [{ "type": "http", "url": "http://localhost:3001/hooks" }]
+    }],
+    "SubagentStart": [{
+      "hooks": [{ "type": "http", "url": "http://localhost:3001/hooks" }]
+    }],
+    "SubagentStop": [{
+      "hooks": [{ "type": "http", "url": "http://localhost:3001/hooks" }]
+    }]
+  }
+}
+```
+
+Each hook event includes `session_id`, `tool_name`, `tool_input`, and `hook_event_name` — the bridge server maps these to agent statuses automatically. When Claude reads files the character animates as "reading", when it writes code it shows "typing", and when it finishes you see "success".
+
+> **Tip:** Add `SessionStart` and `SessionEnd` hooks too if you want agents to appear/disappear with each session.
+
+#### Cursor
+
+Cursor uses command-based hooks. Copy the hook script and configure `.cursor/hooks.json`:
+
+```bash
+mkdir -p .cursor/hooks
+cp examples/cursor-hook.sh .cursor/hooks/agent-town.sh
+chmod +x .cursor/hooks/agent-town.sh
+```
+
+```json
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [{
+      "command": ".cursor/hooks/agent-town.sh",
+      "type": "command",
+      "timeout": 5
+    }],
+    "preToolUse": [{
+      "command": ".cursor/hooks/agent-town.sh",
+      "type": "command",
+      "timeout": 5
+    }],
+    "postToolUse": [{
+      "command": ".cursor/hooks/agent-town.sh",
+      "type": "command",
+      "timeout": 5
+    }],
+    "afterFileEdit": [{
+      "command": ".cursor/hooks/agent-town.sh",
+      "type": "command",
+      "timeout": 5
+    }],
+    "stop": [{
+      "command": ".cursor/hooks/agent-town.sh",
+      "type": "command",
+      "timeout": 5
+    }]
+  }
+}
+```
+
+The hook script reads JSON from stdin (Cursor's payload format) and forwards it to the bridge server via `curl`.
+
+#### OpenAI Codex
+
+Codex offers two integration methods:
+
+**Option A — Notify (simple, fires on turn completion):**
+
+Add to `~/.codex/config.toml`:
+
+```toml
+notify = ["node", "/path/to/examples/codex-notify.mjs"]
+```
+
+**Option B — NDJSON stream (real-time, every event):**
+
+```bash
+./examples/codex-stream.sh "Fix the authentication bug in login.ts"
+```
+
+This wraps `codex exec --json` and pipes each event (tool use, file changes, reasoning, completion) to the bridge server in real time.
+
+### How Events Map to Animations
+
+| Hook Event | Agent Status | Character Animation |
+|---|---|---|
+| `PreToolUse` + Read/Grep/Search | `reading` | Arms down, focused |
+| `PreToolUse` + Edit/Write/Bash | `typing` | Arms moving |
+| `PostToolUse` | `thinking` | Animated dots |
+| `PostToolUseFailure` | `error` | Red X |
+| `Stop` / turn complete | `success` | Green checkmark |
+| `SubagentStart` | New agent spawns | Walks to desk |
+| `SubagentStop` | Agent removed | Disappears |
+
+## More Integration Examples
 
 ### With WebSocket
 
@@ -329,6 +481,13 @@ app/                          Next.js playground (not published)
 
 components/                   Playground UI components
 lib/                          Simulation engine and scenario presets
+
+examples/                     Integration examples
+├── bridge-server.mjs         WebSocket bridge for coding agents
+├── live-dashboard.html       Standalone browser dashboard
+├── cursor-hook.sh            Cursor hook script (stdin → HTTP)
+├── codex-stream.sh           Codex NDJSON stream wrapper
+└── codex-notify.mjs          Codex notify handler
 ```
 
 ## Roadmap

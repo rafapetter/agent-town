@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Town — Live Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d1117; color: #e6edf3; font-family: system-ui; }
+    #town { width: 100%; height: 100vh; }
+    #status {
+      position: fixed; top: 12px; right: 12px;
+      background: rgba(13,17,23,0.9); padding: 8px 14px;
+      border-radius: 8px; font-size: 12px;
+      border: 1px solid #30363d;
+    }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .dot.connected { background: #3fb950; }
+    .dot.disconnected { background: #f85149; }
+  </style>
+</head>
+<body>
+  <div id="town"></div>
+  <div id="status"><span class="dot disconnected" id="dot"></span><span id="label">Connecting...</span></div>
+
+  <script type="module">
+    import { AgentTown } from 'agent-town';
+
+    const town = new AgentTown({
+      container: document.getElementById('town'),
+      environment: 'office',
+      officeSize: 'medium',
+    });
+
+    // ── Connect to bridge server ──────────────────────────────────
+    const BRIDGE_WS = 'ws://localhost:3001';
+    let ws;
+
+    function connect() {
+      ws = new WebSocket(BRIDGE_WS);
+
+      ws.onopen = () => {
+        document.getElementById('dot').className = 'dot connected';
+        document.getElementById('label').textContent = 'Connected to bridge';
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        switch (data.type) {
+          case 'spawn':
+            if (!town.getAgent(data.id)) {
+              town.addAgent({ id: data.id, name: data.name, status: data.status || 'idle' });
+              if (data.message) {
+                town.updateAgent(data.id, { message: data.message });
+              }
+            }
+            break;
+
+          case 'update':
+            if (town.getAgent(data.id)) {
+              town.updateAgent(data.id, {
+                status: data.status,
+                message: data.message || null,
+              });
+            }
+            break;
+
+          case 'remove':
+            town.removeAgent(data.id);
+            break;
+        }
+      };
+
+      ws.onclose = () => {
+        document.getElementById('dot').className = 'dot disconnected';
+        document.getElementById('label').textContent = 'Reconnecting...';
+        setTimeout(connect, 3000);
+      };
+    }
+
+    connect();
+  </script>
+</body>
+</html>
