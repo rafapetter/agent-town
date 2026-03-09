@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { TownCanvas } from '../components/TownCanvas';
 import { Sidebar, Control } from '../components/Sidebar';
+import { DashboardView } from '../components/DashboardView';
 import { AgentPanel } from '../components/panels/AgentPanel';
 import { ProjectPanel } from '../components/panels/ProjectPanel';
 import { KanbanPanel } from '../components/panels/KanbanPanel';
@@ -33,6 +34,7 @@ export default function PlaygroundPage() {
   const [simStatus, setSimStatus] = useState<'stopped' | 'running' | 'paused'>('stopped');
   const [speed, setSpeed] = useState(1);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [viewMode, setViewMode] = useState<'canvas' | 'dashboard'>('canvas');
   const [, setTick] = useState(0);
   const rerender = useCallback(() => setTick(t => t + 1), []);
 
@@ -189,125 +191,170 @@ export default function PlaygroundPage() {
     { id: 'chat', label: 'Chat' },
   ];
 
+  // ── Shared controls (used by both Sidebar and DashboardView) ──
+  const controlsJSX = (
+    <>
+      <Control label="Environment">
+        <select value={env} onChange={handleEnvChange}>
+          <option value="office">Office</option>
+          <option value="rocket">Rocket Launch</option>
+          <option value="space_station">Space Station</option>
+          <option value="farm">Farm &amp; Ranch</option>
+          <option value="hospital">Hospital</option>
+          <option value="pirate_ship">Pirate Ship</option>
+          <option value="town">Town</option>
+        </select>
+      </Control>
+      {env === 'office' && (
+        <Control label="Theme">
+          <select value={theme} onChange={handleThemeChange}>
+            <option value="casual">Casual</option>
+            <option value="business">Business</option>
+            <option value="hybrid">Hybrid</option>
+          </select>
+        </Control>
+      )}
+      <Control label="Preset">
+        <select
+          onChange={(e) => e.target.value && startSimulation(e.target.value as PresetKey)}
+          defaultValue=""
+        >
+          <option value="" disabled>Select...</option>
+          <option value="startup">Startup (4)</option>
+          <option value="sprint">Sprint Team (8)</option>
+          <option value="enterprise">Enterprise (12)</option>
+        </select>
+      </Control>
+      <Control label="Speed">
+        <div className="speed-control">
+          <input
+            type="range"
+            min="0.5"
+            max="5"
+            step="0.1"
+            value={speed}
+            onChange={handleSpeedChange}
+          />
+          <span className="speed-label">{speed.toFixed(1)}x</span>
+        </div>
+      </Control>
+      {simStatus !== 'stopped' && (
+        <>
+          <button
+            className={simStatus === 'paused' ? 'btn-g' : 'btn-w'}
+            onClick={togglePause}
+          >
+            {simStatus === 'paused' ? 'Resume' : 'Pause'}
+          </button>
+          <button className="btn-s" onClick={stopSimulation}>Stop</button>
+        </>
+      )}
+    </>
+  );
+
+  // ── Shared panel content (used by both Sidebar and DashboardView) ──
+  const renderPanelContent = () => (
+    <>
+      {town && <WorkspaceSelector town={town} onWorkspaceChange={rerender} />}
+      {town && sim && (
+        <>
+          {activeTab === 'agents' && <AgentPanel town={town} sim={sim} />}
+          {activeTab === 'project' && <ProjectPanel town={town} />}
+          {activeTab === 'kanban' && <KanbanPanel town={town} />}
+          {activeTab === 'timeline' && <TimelinePanel town={town} />}
+          {activeTab === 'manage' && <ManagePanel town={town} onUpdate={rerender} />}
+          {activeTab === 'activity' && <ActivityPanel town={town} />}
+          {activeTab === 'reviews' && <ReviewsPanel town={town} sim={sim} onUpdate={rerender} />}
+          {activeTab === 'analytics' && <AnalyticsPanel town={town} sim={sim} />}
+          {activeTab === 'settings' && (
+            <SettingsPanel
+              town={town}
+              env={env}
+              theme={theme}
+              speed={speed}
+              onEnvChange={(v) => { setEnv(v); town.setEnvironment(v); }}
+              onThemeChange={(v) => { setTheme(v); town.setTheme(v); }}
+              onSpeedChange={(v) => { setSpeed(v); simRef.current?.setSpeed(v); }}
+            />
+          )}
+          {activeTab === 'chat' && <ChatPanel town={town} sim={sim} />}
+        </>
+      )}
+      {!town && <div className="empty">Loading...</div>}
+    </>
+  );
+
+  const githubLink = (
+    <a href="https://github.com/rafapetter/agent-town" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)', textDecoration: 'none', marginTop: 4 }} title="View on GitHub">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      github.com/rafapetter/agent-town
+    </a>
+  );
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <TownCanvas
-        theme={theme}
-        environment={env}
-        onTownReady={handleTownReady}
-        onAgentClick={(id) => setActiveTab('agents')}
-      />
-      <Sidebar
-        title="Agent Town"
-        subtitle="Realistic agentic simulation"
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => {
-          setSidebarCollapsed(!sidebarCollapsed);
-          // Resize canvas after sidebar transition completes
-          setTimeout(() => townRef.current?.resize(), 220);
-        }}
-        subtitleExtra={
-          <a href="https://github.com/rafapetter/agent-town" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)', textDecoration: 'none', marginTop: 4 }} title="View on GitHub">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-            github.com/rafapetter/agent-town
-          </a>
-        }
-        headerExtra={
-          <div className={`sim-status ${simStatus}`}>
-            <span className="pulse-dot" />
-            <span>{simStatus.charAt(0).toUpperCase() + simStatus.slice(1)}</span>
-          </div>
-        }
-        controls={
-          <>
-            <Control label="Environment">
-              <select value={env} onChange={handleEnvChange}>
-                <option value="office">Office</option>
-                <option value="rocket">Rocket Launch</option>
-                <option value="space_station">Space Station</option>
-                <option value="farm">Farm &amp; Ranch</option>
-                <option value="hospital">Hospital</option>
-                <option value="pirate_ship">Pirate Ship</option>
-                <option value="town">Town</option>
-              </select>
-            </Control>
-            {env === 'office' && (
-              <Control label="Theme">
-                <select value={theme} onChange={handleThemeChange}>
-                  <option value="casual">Casual</option>
-                  <option value="business">Business</option>
-                  <option value="hybrid">Hybrid</option>
-                </select>
-              </Control>
-            )}
-            <Control label="Preset">
-              <select
-                onChange={(e) => e.target.value && startSimulation(e.target.value as PresetKey)}
-                defaultValue=""
+      {/* Canvas — hidden but not unmounted in dashboard mode */}
+      <div style={{
+        flex: 1, minWidth: 0,
+        display: viewMode === 'dashboard' ? 'none' : 'flex',
+      }}>
+        <TownCanvas
+          theme={theme}
+          environment={env}
+          onTownReady={handleTownReady}
+          onAgentClick={(id) => setActiveTab('agents')}
+        />
+      </div>
+
+      {viewMode === 'canvas' ? (
+        <Sidebar
+          title="Agent Town"
+          subtitle="Realistic agentic simulation"
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => {
+            setSidebarCollapsed(!sidebarCollapsed);
+            setTimeout(() => townRef.current?.resize(), 220);
+          }}
+          subtitleExtra={githubLink}
+          headerExtra={
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+              <button
+                onClick={() => setViewMode('dashboard')}
+                title="Switch to Dashboard view"
+                className="btn-s"
+                style={{ fontSize: 10, padding: '3px 8px' }}
               >
-                <option value="" disabled>Select...</option>
-                <option value="startup">Startup (4)</option>
-                <option value="sprint">Sprint Team (8)</option>
-                <option value="enterprise">Enterprise (12)</option>
-              </select>
-            </Control>
-            <Control label="Speed">
-              <div className="speed-control">
-                <input
-                  type="range"
-                  min="0.5"
-                  max="5"
-                  step="0.1"
-                  value={speed}
-                  onChange={handleSpeedChange}
-                />
-                <span className="speed-label">{speed.toFixed(1)}x</span>
+                Dashboard
+              </button>
+              <div className={`sim-status ${simStatus}`}>
+                <span className="pulse-dot" />
+                <span>{simStatus.charAt(0).toUpperCase() + simStatus.slice(1)}</span>
               </div>
-            </Control>
-            {simStatus !== 'stopped' && (
-              <>
-                <button
-                  className={simStatus === 'paused' ? 'btn-g' : 'btn-w'}
-                  onClick={togglePause}
-                >
-                  {simStatus === 'paused' ? 'Resume' : 'Pause'}
-                </button>
-                <button className="btn-s" onClick={stopSimulation}>Stop</button>
-              </>
-            )}
-          </>
-        }
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      >
-        {town && <WorkspaceSelector town={town} onWorkspaceChange={rerender} />}
-        {town && sim && (
-          <>
-            {activeTab === 'agents' && <AgentPanel town={town} sim={sim} />}
-            {activeTab === 'project' && <ProjectPanel town={town} />}
-            {activeTab === 'kanban' && <KanbanPanel town={town} />}
-            {activeTab === 'timeline' && <TimelinePanel town={town} />}
-            {activeTab === 'manage' && <ManagePanel town={town} onUpdate={rerender} />}
-            {activeTab === 'activity' && <ActivityPanel town={town} />}
-            {activeTab === 'reviews' && <ReviewsPanel town={town} sim={sim} onUpdate={rerender} />}
-            {activeTab === 'analytics' && <AnalyticsPanel town={town} sim={sim} />}
-            {activeTab === 'settings' && (
-              <SettingsPanel
-                town={town}
-                env={env}
-                theme={theme}
-                speed={speed}
-                onEnvChange={(v) => { setEnv(v); town.setEnvironment(v); }}
-                onThemeChange={(v) => { setTheme(v); town.setTheme(v); }}
-                onSpeedChange={(v) => { setSpeed(v); simRef.current?.setSpeed(v); }}
-              />
-            )}
-            {activeTab === 'chat' && <ChatPanel town={town} sim={sim} />}
-          </>
-        )}
-        {!town && <div className="empty">Loading...</div>}
-      </Sidebar>
+            </div>
+          }
+          controls={controlsJSX}
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        >
+          {renderPanelContent()}
+        </Sidebar>
+      ) : (
+        <DashboardView
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onSwitchToCanvas={() => {
+            setViewMode('canvas');
+            setTimeout(() => townRef.current?.resize(), 50);
+          }}
+          controls={controlsJSX}
+          simStatus={simStatus}
+          subtitleExtra={githubLink}
+        >
+          {renderPanelContent()}
+        </DashboardView>
+      )}
     </div>
   );
 }

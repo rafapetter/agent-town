@@ -275,10 +275,17 @@ button {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
 
+/* ── Dashboard mode (full-page) ──────────── */
+
+.dashboard-mode .stats-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 /* ── Responsive ───────────────────────────── */
 
 @media (max-width: 768px) {
   .stats-grid { grid-template-columns: 1fr 1fr; gap: 5px; }
   .stat-card .sv { font-size: 18px; }
   .stat-card .sl { font-size: 9px; }
+  .dashboard-mode .stats-grid { grid-template-columns: 1fr 1fr; }
 }

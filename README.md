@@ -58,7 +58,7 @@ Each agent you register gets its own animated pixel character that walks around,
 
 ## Dashboard & Analytics
 
-The playground sidebar includes 10 panels that provide real-time data insights and project management tools:
+Toggle between the **Pixel Art** canvas and a **full-page Dashboard** for deeper data visibility. The dashboard includes 10 panels with real-time insights and project management tools:
 
 | Panel | What It Shows |
 |-------|---------------|
@@ -72,6 +72,17 @@ The playground sidebar includes 10 panels that provide real-time data insights a
 | **Analytics** | Metrics dashboard — active agent count, task completion rates, sprint progress, objective progress bars, agent status distribution, and per-agent performance ranking |
 | **Settings** | Visualization config — environment selector, office theme, particle density, simulation speed |
 | **Chat** | Real-time conversation interface — message individual agents or broadcast to all; agents respond contextually based on their current workflow state |
+
+<table>
+<tr>
+<td><strong>Agents</strong><br><img src="docs/screenshots/dashboard-agents.png" width="400" alt="Dashboard — Agents panel"></td>
+<td><strong>Analytics</strong><br><img src="docs/screenshots/dashboard-analytics.png" width="400" alt="Dashboard — Analytics panel"></td>
+</tr>
+<tr>
+<td><strong>Kanban</strong><br><img src="docs/screenshots/dashboard-kanban.png" width="400" alt="Dashboard — Kanban panel"></td>
+<td><strong>Timeline</strong><br><img src="docs/screenshots/dashboard-timeline.png" width="400" alt="Dashboard — Timeline panel"></td>
+</tr>
+</table>
 
 ## Install
 
