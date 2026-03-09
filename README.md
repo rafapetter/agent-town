@@ -47,8 +47,12 @@ Each agent you register gets its own animated pixel character that walks around,
 <td><strong>Farm & Ranch</strong><br><img src="docs/screenshots/playground-farm.png" width="400" alt="Farm environment"></td>
 </tr>
 <tr>
+<td><strong>Rocket Launch</strong><br><img src="docs/screenshots/playground-rocket.png" width="400" alt="Rocket Launch environment"></td>
 <td><strong>Pirate Ship</strong><br><img src="docs/screenshots/playground-pirate-ship.png" width="400" alt="Pirate Ship environment"></td>
+</tr>
+<tr>
 <td><strong>Town</strong><br><img src="docs/screenshots/playground-town.png" width="400" alt="Town RPG environment"></td>
+<td><strong>Office</strong><br><img src="docs/screenshots/playground-agents.png" width="400" alt="Office environment with agents"></td>
 </tr>
 </table>
 
