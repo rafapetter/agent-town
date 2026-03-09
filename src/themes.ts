@@ -146,6 +146,19 @@ export const ENV_COLORS: Record<string, ThemeColors> = {
     meetingTable: '#6B4423', meetingTableEdge: '#5A3A1A',
     rug: '#7A6A50', waterCooler: '#6A6A7A', waterCoolerWater: '#4488CC',
   },
+  town: {
+    bg: '#0B1A12', floor: '#6B8A4A', floorAlt: '#5F7E42', floorGrid: '#557838',
+    wall: '#8B7355', wallTop: '#A0896A', wallBorder: '#7A6345',
+    deskTop: '#A0896A', deskEdge: '#7A6345', deskLeg: '#5C4A32',
+    monitor: '#3A3A4A', screenOn: '#4ADE80', screenOff: '#1A2A15',
+    chairSeat: '#7A6345', chairBack: '#6B5535',
+    plantLeaf: '#4A7A2A', plantLeafAlt: '#3A6A1A', plantPot: '#6B4423',
+    bookshelf: '#7A6345', books: ['#C0392B','#2980B9','#27AE60','#F39C12','#8E44AD'],
+    coffee: '#4A3520', couch: '#6B5535', whiteboard: '#D0C8B0',
+    cabinet: '#7A6345', printer: '#5A5A5A',
+    meetingTable: '#8B7355', meetingTableEdge: '#6B5535',
+    rug: '#8B7355', waterCooler: '#4A6A8A', waterCoolerWater: '#6ABFEF',
+  },
 };
 
 /* ── size configs ──────────────────────────────── */
@@ -161,15 +174,48 @@ export interface SizeConfig {
   deskCols: number;
 }
 
+/** Height added at top of grid for orchestrator/manager corridor */
+export const ORCHESTRATOR_ROWS = 2;
+
 export const SIZE_CONFIGS: Record<OfficeSize, SizeConfig> = {
-  small:  { width: 20, height: 13, maxWorkstations: 8,  deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 4 },
-  medium: { width: 26, height: 16, maxWorkstations: 16, deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 4 },
-  large:  { width: 34, height: 20, maxWorkstations: 24, deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 6 },
+  small:  { width: 24, height: 13 + ORCHESTRATOR_ROWS, maxWorkstations: 10, deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 4 },
+  medium: { width: 30, height: 16 + ORCHESTRATOR_ROWS, maxWorkstations: 18, deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 4 },
+  large:  { width: 38, height: 20 + ORCHESTRATOR_ROWS, maxWorkstations: 28, deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 6 },
+  wide:   { width: 46, height: 18 + ORCHESTRATOR_ROWS, maxWorkstations: 32, deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 8 },
+  xl:     { width: 54, height: 22 + ORCHESTRATOR_ROWS, maxWorkstations: 40, deskStartX: 3, deskColSpacing: 5, deskRowSpacing: 4, deskStartY: 2, deskCols: 10 },
 };
 
 /* ── auto-size helper ─────────────────────────── */
 
-export function getAutoSize(agentCount: number): OfficeSize {
+/** Pick the grid size that best fills the container.
+ *  With fractional scaling, prefers larger grids that use more of the
+ *  container area while maintaining a minimum scale of 1.5× for readability.
+ *  Falls back to agent-count heuristic otherwise. */
+export function getAutoSize(agentCount: number, containerW?: number, containerH?: number, tileSize = 16): OfficeSize {
+  // If container dimensions provided, pick the size that fills the most area
+  if (containerW && containerH) {
+    const sizes: OfficeSize[] = ['small', 'medium', 'large', 'wide', 'xl'];
+    let best: OfficeSize = 'small';
+    let bestScore = 0;
+    for (const size of sizes) {
+      const cfg = SIZE_CONFIGS[size];
+      if (agentCount > cfg.maxWorkstations) continue;
+      const worldW = cfg.width * tileSize;
+      const worldH = cfg.height * tileSize;
+      // Fractional scale — how large would this grid render?
+      const scale = Math.min((containerW - 8) / worldW, (containerH - 8) / worldH);
+      if (scale < 1.5) continue; // Skip if grid would be too small to read
+      const filledW = worldW * scale;
+      const filledH = worldH * scale;
+      const score = filledW * filledH;
+      if (score > bestScore) {
+        bestScore = score;
+        best = size;
+      }
+    }
+    return best;
+  }
+  // Fallback: agent-count heuristic
   if (agentCount <= 6) return 'small';
   if (agentCount <= 14) return 'medium';
   return 'large';
@@ -184,4 +230,5 @@ export const ENV_LABELS: Record<EnvironmentId, string> = {
   farm: 'Farm & Ranch',
   hospital: 'Hospital',
   pirate_ship: 'Pirate Ship',
+  town: 'Town',
 };

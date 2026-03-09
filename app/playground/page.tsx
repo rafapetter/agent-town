@@ -1,0 +1,313 @@
+'use client';
+
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { TownCanvas } from '../../components/TownCanvas';
+import { Sidebar, Control } from '../../components/Sidebar';
+import { AgentPanel } from '../../components/panels/AgentPanel';
+import { ProjectPanel } from '../../components/panels/ProjectPanel';
+import { KanbanPanel } from '../../components/panels/KanbanPanel';
+import { ActivityPanel } from '../../components/panels/ActivityPanel';
+import { AnalyticsPanel } from '../../components/panels/AnalyticsPanel';
+import { ReviewsPanel } from '../../components/panels/ReviewsPanel';
+import { ChatPanel } from '../../components/panels/ChatPanel';
+import { ManagePanel } from '../../components/panels/ManagePanel';
+import { SettingsPanel } from '../../components/panels/SettingsPanel';
+import { TimelinePanel } from '../../components/panels/TimelinePanel';
+import { WorkspaceSelector } from '../../components/WorkspaceSelector';
+import { AgentSimulation } from '../../lib/simulation';
+import { SCENARIOS, type Scenario } from '../../lib/scenarios';
+import type { AgentTown } from '../../src/index';
+import type { EnvironmentId, ThemeId } from '../../src/index';
+import Link from 'next/link';
+
+type PresetKey = keyof typeof SCENARIOS;
+
+export default function PlaygroundPage() {
+  const townRef = useRef<AgentTown | null>(null);
+  const simRef = useRef<AgentSimulation | null>(null);
+  const uiIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const spawnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [env, setEnv] = useState<EnvironmentId>('office');
+  const [theme, setTheme] = useState<ThemeId>('hybrid');
+  const [activeTab, setActiveTab] = useState('agents');
+  const [simStatus, setSimStatus] = useState<'stopped' | 'running' | 'paused'>('stopped');
+  const [speed, setSpeed] = useState(1);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [, setTick] = useState(0);
+  const rerender = useCallback(() => setTick(t => t + 1), []);
+
+  const handleTownReady = useCallback((town: AgentTown) => {
+    townRef.current = town;
+    simRef.current = new AgentSimulation(town);
+    rerender();
+  }, [rerender]);
+
+  const handleEnvChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const v = e.target.value as EnvironmentId;
+    setEnv(v);
+    townRef.current?.setEnvironment(v);
+  }, []);
+
+  const handleThemeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const v = e.target.value as ThemeId;
+    setTheme(v);
+    townRef.current?.setTheme(v);
+  }, []);
+
+  const handleSpeedChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value);
+    setSpeed(v);
+    simRef.current?.setSpeed(v);
+  }, []);
+
+  const startSimulation = useCallback((presetKey: PresetKey) => {
+    const town = townRef.current;
+    const sim = simRef.current;
+    if (!town || !sim) return;
+
+    stopSimulation();
+
+    const scenario = SCENARIOS[presetKey];
+    const agentCount = scenario.agents.length;
+    const size = agentCount <= 6 ? 'small' : agentCount <= 14 ? 'medium' : 'large';
+    town.setOfficeSize(size as any);
+    town.removeAllAgents();
+    town.clearTasks();
+    town.clearReviews();
+    town.clearActivityLog();
+    town.clearObjectives();
+    town.clearStories();
+    town.clearSprints();
+
+    // Clear existing workspaces
+    for (const ws of town.getWorkspaces()) {
+      town.removeWorkspace(ws.id);
+    }
+
+    // Auto-create workspaces from scenario presets
+    if (scenario.workspaces) {
+      for (const wsDef of scenario.workspaces) {
+        const agentIds = scenario.agents
+          .filter(a => a.team === wsDef.team)
+          .map(a => a.id);
+        town.addWorkspace({
+          id: `ws_${wsDef.team.toLowerCase().replace(/\s+/g, '_')}`,
+          name: wsDef.name,
+          color: wsDef.color,
+          agentIds,
+        });
+      }
+    }
+
+    // Add sprints
+    for (const sprint of scenario.sprints) {
+      town.addSprint({ ...sprint, status: 'active' });
+    }
+
+    // Add objectives
+    for (const obj of scenario.objectives) {
+      town.addObjective({ ...obj, status: 'active', description: obj.description });
+    }
+
+    // Add stories
+    for (const story of scenario.stories) {
+      town.addStory({ ...story, status: 'ready', description: story.description });
+    }
+
+    // Add tasks (all start in backlog)
+    sim.taskCounter = scenario.tasks.length;
+    sim.agentCounter = scenario.agents.length;
+    for (const task of scenario.tasks) {
+      town.addTask({ ...task, description: '', stage: 'backlog' });
+    }
+
+    // Stagger agent spawning
+    let i = 0;
+    const spawnNext = () => {
+      if (i >= scenario.agents.length) {
+        sim.start();
+        sim.onUIUpdate = () => {
+          rerender();
+        };
+        // Periodic UI refresh
+        uiIntervalRef.current = setInterval(rerender, 2000);
+        return;
+      }
+      const a = scenario.agents[i++];
+      town.addAgent(a);
+      sim.addAgent(a.id);
+      town.logActivity(a.id, 'system', `${a.name} joined the team as ${a.role}`);
+      rerender();
+      spawnTimerRef.current = setTimeout(spawnNext, 500);
+    };
+    spawnNext();
+
+    setSimStatus('running');
+    rerender();
+  }, [rerender]);
+
+  const stopSimulation = useCallback(() => {
+    simRef.current?.stop();
+    if (spawnTimerRef.current) { clearTimeout(spawnTimerRef.current); spawnTimerRef.current = null; }
+    if (uiIntervalRef.current) { clearInterval(uiIntervalRef.current); uiIntervalRef.current = null; }
+    setSimStatus('stopped');
+  }, []);
+
+  const togglePause = useCallback(() => {
+    const sim = simRef.current;
+    if (!sim) return;
+    if (sim.paused) {
+      sim.resume();
+      setSimStatus('running');
+    } else {
+      sim.pause();
+      setSimStatus('paused');
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      simRef.current?.destroy();
+      if (spawnTimerRef.current) clearTimeout(spawnTimerRef.current);
+      if (uiIntervalRef.current) clearInterval(uiIntervalRef.current);
+    };
+  }, []);
+
+  const town = townRef.current;
+  const sim = simRef.current;
+
+  const tabs = [
+    { id: 'agents', label: 'Agents' },
+    { id: 'project', label: 'Project' },
+    { id: 'kanban', label: 'Kanban' },
+    { id: 'timeline', label: 'Timeline' },
+    { id: 'manage', label: 'Manage' },
+    { id: 'activity', label: 'Activity' },
+    { id: 'reviews', label: 'Reviews', badge: town?.getPendingReviews().length },
+    { id: 'analytics', label: 'Analytics' },
+    { id: 'settings', label: 'Settings' },
+    { id: 'chat', label: 'Chat' },
+  ];
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      <TownCanvas
+        theme={theme}
+        environment={env}
+        onTownReady={handleTownReady}
+        onAgentClick={(id) => setActiveTab('agents')}
+      />
+      <Sidebar
+        title="Agent Town Playground"
+        subtitle="Realistic agentic simulation"
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => {
+          setSidebarCollapsed(!sidebarCollapsed);
+          // Resize canvas after sidebar transition completes
+          setTimeout(() => townRef.current?.resize(), 220);
+        }}
+        headerExtra={
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+            <Link href="/" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>
+              &larr; Simple Demo
+            </Link>
+            <div className={`sim-status ${simStatus}`}>
+              <span className="pulse-dot" />
+              <span>{simStatus.charAt(0).toUpperCase() + simStatus.slice(1)}</span>
+            </div>
+          </div>
+        }
+        controls={
+          <>
+            <Control label="Environment">
+              <select value={env} onChange={handleEnvChange}>
+                <option value="office">Office</option>
+                <option value="rocket">Rocket Launch</option>
+                <option value="space_station">Space Station</option>
+                <option value="farm">Farm &amp; Ranch</option>
+                <option value="hospital">Hospital</option>
+                <option value="pirate_ship">Pirate Ship</option>
+                <option value="town">Town</option>
+              </select>
+            </Control>
+            {env === 'office' && (
+              <Control label="Theme">
+                <select value={theme} onChange={handleThemeChange}>
+                  <option value="casual">Casual</option>
+                  <option value="business">Business</option>
+                  <option value="hybrid">Hybrid</option>
+                </select>
+              </Control>
+            )}
+            <Control label="Preset">
+              <select
+                onChange={(e) => e.target.value && startSimulation(e.target.value as PresetKey)}
+                defaultValue=""
+              >
+                <option value="" disabled>Select...</option>
+                <option value="startup">Startup (4)</option>
+                <option value="sprint">Sprint Team (8)</option>
+                <option value="enterprise">Enterprise (12)</option>
+              </select>
+            </Control>
+            <Control label="Speed">
+              <div className="speed-control">
+                <input
+                  type="range"
+                  min="0.5"
+                  max="5"
+                  step="0.1"
+                  value={speed}
+                  onChange={handleSpeedChange}
+                />
+                <span className="speed-label">{speed.toFixed(1)}x</span>
+              </div>
+            </Control>
+            {simStatus !== 'stopped' && (
+              <>
+                <button
+                  className={simStatus === 'paused' ? 'btn-g' : 'btn-w'}
+                  onClick={togglePause}
+                >
+                  {simStatus === 'paused' ? 'Resume' : 'Pause'}
+                </button>
+                <button className="btn-s" onClick={stopSimulation}>Stop</button>
+              </>
+            )}
+          </>
+        }
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      >
+        {town && <WorkspaceSelector town={town} onWorkspaceChange={rerender} />}
+        {town && sim && (
+          <>
+            {activeTab === 'agents' && <AgentPanel town={town} sim={sim} />}
+            {activeTab === 'project' && <ProjectPanel town={town} />}
+            {activeTab === 'kanban' && <KanbanPanel town={town} />}
+            {activeTab === 'timeline' && <TimelinePanel town={town} />}
+            {activeTab === 'manage' && <ManagePanel town={town} onUpdate={rerender} />}
+            {activeTab === 'activity' && <ActivityPanel town={town} />}
+            {activeTab === 'reviews' && <ReviewsPanel town={town} sim={sim} onUpdate={rerender} />}
+            {activeTab === 'analytics' && <AnalyticsPanel town={town} sim={sim} />}
+            {activeTab === 'settings' && (
+              <SettingsPanel
+                town={town}
+                env={env}
+                theme={theme}
+                speed={speed}
+                onEnvChange={(v) => { setEnv(v); town.setEnvironment(v); }}
+                onThemeChange={(v) => { setTheme(v); town.setTheme(v); }}
+                onSpeedChange={(v) => { setSpeed(v); simRef.current?.setSpeed(v); }}
+              />
+            )}
+            {activeTab === 'chat' && <ChatPanel town={town} sim={sim} />}
+          </>
+        )}
+        {!town && <div className="empty">Loading...</div>}
+      </Sidebar>
+    </div>
+  );
+}

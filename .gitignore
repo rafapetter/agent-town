@@ -1,4 +1,7 @@
 node_modules/
 dist/
+.next/
+out/
 *.local
 .DS_Store
+next-env.d.ts

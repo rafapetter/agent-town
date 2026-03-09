@@ -132,6 +132,7 @@
           <option value="farm">Farm &amp; Ranch</option>
           <option value="hospital">Hospital</option>
           <option value="pirate_ship">Pirate Ship</option>
+          <option value="town">Town</option>
         </select>
       </div>
       <div class="ctrl" id="theme-ctrl"><label>Theme</label>
@@ -222,12 +223,16 @@
       container: el('town-container'),
       theme: 'hybrid',
       officeSize: 'small',
+      environment: 'town',
+      roomMode: 'kanban',
       onAgentClick: id => {
         switchTab('agents');
         const c = document.querySelector(`[data-aid="${id}"]`);
         if (c) c.scrollIntoView({behavior:'smooth',block:'nearest'});
       },
     });
+    el('sel-env').value = 'town';
+    el('theme-ctrl').style.display = 'none';
 
     /* ── tabs ───────────────────────────────────── */
     document.querySelectorAll('.tab-bar .tab').forEach(btn => {
@@ -244,6 +249,7 @@
     /* ── environment / theme / demo selectors ──── */
     el('sel-env').addEventListener('change', e => {
       const env = e.target.value;
+      town.setRoomMode('kanban');
       town.setEnvironment(env);
       el('theme-ctrl').style.display = env === 'office' ? '' : 'none';
     });

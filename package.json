@@ -1,6 +1,6 @@
 {
   "name": "agent-town",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Visualize your AI agents working in a pixel art office — framework-agnostic JavaScript library",
   "type": "module",
   "main": "dist/agent-town.umd.cjs",
@@ -17,9 +17,10 @@
     "dist"
   ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "next dev",
+    "build": "next build",
+    "build:lib": "vite build",
+    "start": "next start"
   },
   "keywords": [
     "agents",
@@ -42,6 +43,12 @@
   },
   "author": "Rafael Petter",
   "devDependencies": {
+    "@types/node": "25.3.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "typescript": "^5.7.0",
     "vite": "^6.1.0",
     "vite-plugin-dts": "^4.5.0"

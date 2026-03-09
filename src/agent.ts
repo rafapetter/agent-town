@@ -1,4 +1,4 @@
-import type { AgentStatus, CharacterPalette, Direction, Position, SpriteFrame, ZoneType } from './types';
+import type { AgentActivity, AgentStatus, CharacterPalette, Direction, Position, SpriteFrame, ZoneType } from './types';
 import { PALETTES, SPRITES, SPRITES_F } from './sprites';
 
 let nextPaletteIdx = 0;
@@ -6,6 +6,15 @@ let nextPaletteIdx = 0;
 export function resetPaletteCounter(): void {
   nextPaletteIdx = 0;
 }
+
+/** Maps legacy 7-value statuses to the new AgentActivity system */
+const LEGACY_STATUS_MAP: Record<string, AgentActivity> = {
+  typing: 'coding',
+  thinking: 'planning',
+  waiting: 'waiting_approval',
+  // These already exist in AgentActivity, so they pass through:
+  // idle, reading, success, error
+};
 
 export class Agent {
   readonly id: string;
@@ -25,6 +34,7 @@ export class Agent {
   private pathIndex = 0;
 
   userStatus: AgentStatus = 'idle';
+  resolvedActivity: AgentActivity = 'idle';
   isWalking = false;
   isAtDesk = false;
   direction: Direction = 'right';
@@ -44,8 +54,33 @@ export class Agent {
   /* zone & movement */
   currentZoneId: number | null = null;
   currentZoneType: ZoneType | null = null;
-  movementTimer = 15 + Math.random() * 15;
+  movementTimer = 5 + Math.random() * 8;
   isRoaming = false;
+
+  /* social / creative behavior */
+  socialAction: 'none' | 'coffee_break' | 'chatting' | 'waving' | 'pointing' | 'high_five' | 'stretching' = 'none';
+  socialTimer = 0;
+  socialPartnerId: string | null = null;
+  coffeeBreakTimer = 30 + Math.random() * 20; // 30-50 sec until first coffee break
+  /** Timer for idle procrastination messages */
+  idleMessageTimer = 5 + Math.random() * 5;
+
+  /* portal teleportation */
+  portalState: 'none' | 'departing' | 'arriving' = 'none';
+  portalTimer = 0;
+  portalDest: Position | null = null;
+  private static PORTAL_DEPART_TIME = 0.6;
+  private static PORTAL_ARRIVE_TIME = 0.5;
+
+  /* hierarchy context — set via updateAgent() */
+  currentObjectiveId: string | null = null;
+  currentStoryId: string | null = null;
+  /** Number of active (non-done, non-backlog) tasks assigned to this agent */
+  activeTaskCount = 0;
+  /** Number of completed tasks assigned to this agent */
+  completedTaskCount = 0;
+  /** Skills / specializations for display */
+  skills: string[] = [];
 
   /** @deprecated Use currentZoneId instead */
   get workstationId(): number | null { return this.currentZoneId; }
@@ -72,6 +107,7 @@ export class Agent {
 
   setStatus(status: AgentStatus, message?: string | null): void {
     this.userStatus = status;
+    this.resolvedActivity = LEGACY_STATUS_MAP[status] ?? status as AgentActivity;
     if (message !== undefined) {
       this.message = message;
       this.messageTimer = message ? 6 : 0;
@@ -86,9 +122,86 @@ export class Agent {
     this.walkProgress = 0;
   }
 
+  portalTo(dest: Position): void {
+    this.portalState = 'departing';
+    this.portalTimer = 0;
+    this.portalDest = dest;
+    this.isWalking = false;
+    this.path = [];
+  }
+
+  /** Maps resolved activity to one of the sprite animation keys */
+  private getAnimationKey(): string {
+    if (this.isWalking) return 'walk';
+    // Social actions take priority over work animations
+    if (this.socialAction !== 'none') {
+      switch (this.socialAction) {
+        case 'chatting': return 'chatting';
+        case 'waving': return 'waving';
+        case 'pointing': return 'pointing';
+        case 'high_five': return 'celebrating';
+        case 'coffee_break': return 'idle';
+        case 'stretching': return 'idle';
+        default: return 'idle';
+      }
+    }
+    switch (this.resolvedActivity) {
+      case 'coding': case 'generating':
+      case 'committing': case 'pushing':
+      case 'linting':
+        return 'typing';
+      case 'refactoring': case 'deploying':
+        return 'hammering';
+      case 'reading': case 'searching': case 'grepping':
+        return 'reading';
+      case 'reviewing': case 'testing': case 'validating':
+        return 'inspecting';
+      case 'planning': case 'analyzing': case 'decomposing':
+        return 'thinking';
+      case 'waiting_approval': case 'blocked':
+        return 'waiting';
+      case 'success':
+        return 'celebrating';
+      default:
+        return 'idle';
+    }
+  }
+
   update(dt: number): void {
+    // ── Portal animation ──
+    if (this.portalState !== 'none') {
+      this.portalTimer += dt;
+      if (this.portalState === 'departing') {
+        if (this.portalTimer >= Agent.PORTAL_DEPART_TIME) {
+          // Teleport to destination
+          if (this.portalDest) {
+            this.x = this.portalDest.x;
+            this.y = this.portalDest.y;
+            this.gridX = this.portalDest.x;
+            this.gridY = this.portalDest.y;
+          }
+          this.portalState = 'arriving';
+          this.portalTimer = 0;
+        }
+      } else if (this.portalState === 'arriving') {
+        if (this.portalTimer >= Agent.PORTAL_ARRIVE_TIME) {
+          this.portalState = 'none';
+          this.portalTimer = 0;
+          this.portalDest = null;
+        }
+      }
+      return; // Skip normal movement during portal
+    }
+
     this.animTimer += dt;
-    const frameRate = this.isWalking ? 0.15 : this.userStatus === 'typing' ? 0.25 : 0.5;
+    const animKey = this.getAnimationKey();
+    const frameRate = this.isWalking ? 0.15
+      : animKey === 'typing' ? 0.25
+      : animKey === 'hammering' ? 0.2
+      : animKey === 'celebrating' ? 0.3
+      : animKey === 'chatting' ? 0.35
+      : animKey === 'waving' ? 0.3
+      : 0.5;
     if (this.animTimer >= frameRate) {
       this.animTimer -= frameRate;
       this.animFrame++;
@@ -98,7 +211,8 @@ export class Agent {
       this.messageTimer -= dt;
       if (this.messageTimer <= 0) {
         this.messageTimer = 0;
-        if (this.userStatus !== 'waiting' && this.userStatus !== 'error') {
+        const a = this.resolvedActivity;
+        if (a !== 'waiting_approval' && a !== 'error' && a !== 'blocked') {
           this.message = null;
         }
       }
@@ -154,7 +268,7 @@ export class Agent {
   }
 
   getCurrentSprite(): { frame: SpriteFrame; flip: boolean } {
-    const key = this.isWalking ? 'walk' : this.userStatus;
+    const key = this.getAnimationKey();
     const spriteSet = this.gender === 'F' ? SPRITES_F : SPRITES;
     const frames = spriteSet[key] ?? spriteSet.idle;
     const frame = frames[this.animFrame % frames.length];

@@ -3,6 +3,9 @@ export type {
   AgentConfig,
   AgentUpdate,
   AgentStatus,
+  AgentActivity,
+  WorkPhase,
+  ParticleEventType,
   TownConfig,
   TownEventMap,
   CharacterPalette,
@@ -17,4 +20,26 @@ export type {
   Task,
   TaskStage,
   ReviewItem,
+  // Hierarchy types (v0.2.0)
+  Priority,
+  Objective,
+  ObjectiveStatus,
+  Story,
+  StoryStatus,
+  Sprint,
+  SprintStatus,
+  Milestone,
+  // Stage & room mode (v0.3.0)
+  StageConfig,
+  BuildingStyle,
+  ActivityProp,
+  RoomMode,
+  // Task visualization (v0.4.0)
+  TaskItemRenderData,
+  CompletionBagRenderData,
+  TaskVisualizationData,
+  FlyingTask,
+  TownSettings,
+  Workspace,
 } from './types';
+export { DEFAULT_STAGES } from './types';
