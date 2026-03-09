@@ -12,6 +12,7 @@ interface SidebarProps {
   title: string;
   subtitle: string;
   headerExtra?: ReactNode;
+  subtitleExtra?: ReactNode;
   controls?: ReactNode;
   tabs: Tab[];
   activeTab: string;
@@ -22,7 +23,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  title, subtitle, headerExtra, controls, tabs, activeTab, onTabChange, children,
+  title, subtitle, headerExtra, subtitleExtra, controls, tabs, activeTab, onTabChange, children,
   collapsed = false, onToggleCollapse,
 }: SidebarProps) {
   return (
@@ -98,6 +99,7 @@ export function Sidebar({
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               }}>{title}</h1>
               <p style={{ fontSize: 11, color: 'var(--muted)' }}>{subtitle}</p>
+              {subtitleExtra}
             </div>
             {headerExtra}
           </div>
