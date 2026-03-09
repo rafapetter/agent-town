@@ -4,7 +4,7 @@ A framework-agnostic TypeScript library that renders pixel-art scenes of AI agen
 
 Each agent you register gets its own animated pixel character that walks around, sits down, and visually reflects what it's doing: typing when writing code, reading when scanning files, thinking when processing, waiting when it needs input.
 
-> **[Try the Live Playground →](https://agent-town.vercel.app/playground)**
+> **[Try the Live Playground →](https://agent-town.vercel.app)**
 
 ![Agent Town — Office environment with 12 agents working across kanban stages](docs/screenshots/playground-office.png)
 
@@ -78,7 +78,7 @@ Or use a CDN:
 
   const town = new AgentTown({
     container: document.getElementById('town'),
-    environment: 'space_station',  // any of the 6 environments
+    environment: 'space_station',  // any of the 7 environments
     officeSize: 'medium',          // 'small' | 'medium' | 'large'
   });
 
@@ -325,8 +325,7 @@ src/                          Library (published to npm)
 └── types.ts                  TypeScript interfaces and type definitions
 
 app/                          Next.js playground (not published)
-├── page.tsx                  Simple demo page
-└── playground/page.tsx       Full playground with simulation engine
+└── page.tsx                  Playground with simulation engine
 
 components/                   Playground UI components
 lib/                          Simulation engine and scenario presets

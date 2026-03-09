@@ -28,7 +28,7 @@ export function Sidebar({
 }: SidebarProps) {
   return (
     <div style={{
-      width: collapsed ? 44 : 400,
+      width: collapsed ? 44 : 480,
       background: 'var(--surface)',
       borderLeft: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0,
