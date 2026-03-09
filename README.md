@@ -4,6 +4,10 @@ A framework-agnostic TypeScript library that renders pixel-art scenes of AI agen
 
 Each agent you register gets its own animated pixel character that walks around, sits down, and visually reflects what it's doing: typing when writing code, reading when scanning files, thinking when processing, waiting when it needs input.
 
+> **[Try the Live Playground →](https://agent-town.vercel.app/playground)**
+
+![Agent Town — Office environment with 12 agents working across kanban stages](docs/screenshots/playground-office.png)
+
 ## Features
 
 - **Zero dependencies** — pure TypeScript, renders to a single `<canvas>`
@@ -25,6 +29,8 @@ Each agent you register gets its own animated pixel character that walks around,
 
 ## Environments
 
+6 themed environments — each with unique pixel-art tiles, furniture, and animated elements:
+
 | Environment | Description | Key Features |
 |---|---|---|
 | **Office** | Classic workspace | Desks, meeting rooms, water cooler, whiteboard. 3 themes: casual / business / hybrid |
@@ -33,6 +39,17 @@ Each agent you register gets its own animated pixel character that walks around,
 | **Farm & Ranch** | Rural workspace | Animated cow/chicken/sheep, tractor with spinning wheels & exhaust, barn, crops |
 | **Hospital** | Research lab | Pharmaceutical/research themed — lab benches, equipment, reception |
 | **Pirate Ship** | Seafaring vessel | Captain's quarters, cannons, barrels, map table, crow's nest |
+
+<table>
+<tr>
+<td><strong>Space Station</strong><br><img src="docs/screenshots/playground-space-station.png" width="400" alt="Space Station environment"></td>
+<td><strong>Farm & Ranch</strong><br><img src="docs/screenshots/playground-farm.png" width="400" alt="Farm environment"></td>
+</tr>
+<tr>
+<td><strong>Pirate Ship</strong><br><img src="docs/screenshots/playground-pirate-ship.png" width="400" alt="Pirate Ship environment"></td>
+<td><strong>Office</strong><br><img src="docs/screenshots/playground-agents.png" width="400" alt="Office environment with agents"></td>
+</tr>
+</table>
 
 ## Install
 

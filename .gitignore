@@ -5,3 +5,4 @@ out/
 *.local
 .DS_Store
 next-env.d.ts
+.vercel
